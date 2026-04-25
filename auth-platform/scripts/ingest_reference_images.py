@@ -8,6 +8,8 @@ For each image:
 4. Normalize the image
 5. Generate texture_baseline_v0.1.0 embedding
 6. Store embedding in reference_embeddings table
+7. Create reference_dataset_members row linking to dataset version
+8. Create reference_label_reviews row
 
 Usage: python scripts/ingest_reference_images.py
 """
@@ -15,6 +17,7 @@ Usage: python scripts/ingest_reference_images.py
 import hashlib
 import sys
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 import psycopg2
@@ -37,6 +40,11 @@ EMBEDDING_DIM = 128
 
 REFERENCE_DIR = Path("sample_data/reference")
 
+DATASET_VERSION = "synthetic_lv_monogram_v0.1.0"
+
+# Deterministic split assignment: cycle through for indices 0-4
+SPLITS = ["train", "train", "train", "validation", "test"]
+
 
 def get_s3():
     return boto3.client(
@@ -46,6 +54,18 @@ def get_s3():
         aws_secret_access_key="test",
         region_name="us-east-1",
     )
+
+
+def get_split_flags(split):
+    """Return (include_in_search, include_in_evaluation, include_in_training) for a split."""
+    if split == "train":
+        return True, False, True
+    elif split == "validation":
+        return False, True, False
+    elif split == "test":
+        return False, True, False
+    else:
+        raise ValueError(f"Unknown split: {split}")
 
 
 def main():
@@ -60,9 +80,23 @@ def main():
     s3 = get_s3()
 
     # Clear existing reference data for clean re-ingestion
+    cur.execute("DELETE FROM reference_label_reviews")
+    cur.execute("DELETE FROM reference_dataset_members")
+    cur.execute("DELETE FROM reference_dataset_versions")
     cur.execute("DELETE FROM reference_embeddings")
     cur.execute("DELETE FROM reference_images")
     cur.execute("DELETE FROM reference_items WHERE source = 'synthetic_test_data'")
+
+    # Create dataset version
+    ds_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc)
+    cur.execute(
+        """INSERT INTO reference_dataset_versions
+           (id, dataset_version, source_type, status, created_at)
+           VALUES (%s, %s, %s, %s, %s)""",
+        (ds_id, DATASET_VERSION, "synthetic", "active", now),
+    )
+    print(f"Created dataset version: {DATASET_VERSION} ({ds_id})")
 
     ingested = 0
 
@@ -99,6 +133,16 @@ def main():
                         (item_id, authenticity, brand, category, material, "synthetic_test_data", "TEST"),
                     )
 
+                    # Create label review for this item
+                    cur.execute(
+                        """INSERT INTO reference_label_reviews
+                           (id, reference_item_id, authenticity_status, label_confidence,
+                            provenance_type, notes)
+                           VALUES (%s, %s, %s, %s, %s, %s)""",
+                        (str(uuid.uuid4()), item_id, authenticity, "high",
+                         "synthetic", "Synthetic local-dev sample, not real authentication data"),
+                    )
+
                     for region_dir in sorted(mat_dir.iterdir()):
                         if not region_dir.is_dir():
                             continue
@@ -129,6 +173,20 @@ def main():
                                  "SYNTHETIC", object_uri, "PASS"),
                             )
 
+                            # Determine split
+                            split = SPLITS[ingested % len(SPLITS)]
+                            in_search, in_eval, in_train = get_split_flags(split)
+
+                            # Create dataset member
+                            cur.execute(
+                                """INSERT INTO reference_dataset_members
+                                   (id, dataset_version_id, reference_image_id, split,
+                                    include_in_search, include_in_evaluation, include_in_training)
+                                   VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+                                (str(uuid.uuid4()), ds_id, ref_image_id, split,
+                                 in_search, in_eval, in_train),
+                            )
+
                             # Normalize + embed
                             try:
                                 norm_bytes = normalize_image(raw_bytes)
@@ -145,6 +203,16 @@ def main():
                                 print(f"    WARNING: embedding failed for {img_path.name}: {exc}")
 
                             ingested += 1
+
+    # Print split summary
+    cur.execute(
+        """SELECT split, count(*) FROM reference_dataset_members
+           WHERE dataset_version_id = %s GROUP BY split ORDER BY split""",
+        (ds_id,),
+    )
+    print("\nSplit distribution:")
+    for split, count in cur.fetchall():
+        print(f"  {split}: {count}")
 
     cur.close()
     conn.close()

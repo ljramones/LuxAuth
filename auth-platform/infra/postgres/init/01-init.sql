@@ -249,6 +249,96 @@ CREATE TABLE processing_runs (
 );
 
 -- =====================================================================
+-- Dataset Governance
+-- =====================================================================
+
+CREATE TABLE reference_dataset_versions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    dataset_version VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    source_type VARCHAR(100) NOT NULL DEFAULT 'synthetic',
+    status VARCHAR(50) NOT NULL DEFAULT 'draft',
+    created_by VARCHAR(255),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE reference_dataset_members (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    dataset_version_id UUID NOT NULL REFERENCES reference_dataset_versions(id),
+    reference_image_id UUID NOT NULL REFERENCES reference_images(id),
+    split VARCHAR(50) NOT NULL DEFAULT 'train',
+    include_in_search BOOLEAN NOT NULL DEFAULT TRUE,
+    include_in_evaluation BOOLEAN NOT NULL DEFAULT FALSE,
+    include_in_training BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE reference_label_reviews (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    reference_item_id UUID NOT NULL REFERENCES reference_items(id),
+    reference_image_id UUID REFERENCES reference_images(id),
+    reviewer_id VARCHAR(255),
+    authenticity_status VARCHAR(50) NOT NULL,
+    label_confidence VARCHAR(50) NOT NULL DEFAULT 'high',
+    provenance_type VARCHAR(100) NOT NULL DEFAULT 'synthetic',
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE threshold_profiles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    profile_name VARCHAR(255) NOT NULL UNIQUE,
+    profile_version VARCHAR(50) NOT NULL,
+    embedding_model_version VARCHAR(100) NOT NULL,
+    reference_dataset_version VARCHAR(255) NOT NULL,
+    strong_match_threshold FLOAT NOT NULL DEFAULT 0.85,
+    mismatch_threshold FLOAT NOT NULL DEFAULT 0.50,
+    ood_threshold FLOAT NOT NULL DEFAULT 0.40,
+    counterfeit_similarity_threshold FLOAT NOT NULL DEFAULT 0.50,
+    min_required_regions INT NOT NULL DEFAULT 5,
+    require_all_regions BOOLEAN NOT NULL DEFAULT TRUE,
+    status VARCHAR(50) NOT NULL DEFAULT 'draft',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- =====================================================================
+-- Evaluation
+-- =====================================================================
+
+CREATE TABLE evaluation_runs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    evaluation_name VARCHAR(255) NOT NULL,
+    reference_dataset_version VARCHAR(255) NOT NULL,
+    embedding_model_version VARCHAR(100) NOT NULL,
+    preprocessing_version VARCHAR(100),
+    threshold_profile VARCHAR(255) NOT NULL,
+    started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    completed_at TIMESTAMPTZ,
+    status VARCHAR(50) NOT NULL DEFAULT 'RUNNING',
+    summary_json JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE evaluation_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    evaluation_run_id UUID NOT NULL REFERENCES evaluation_runs(id),
+    scan_session_id UUID,
+    image_asset_id UUID,
+    reference_image_id UUID,
+    expected_label VARCHAR(50) NOT NULL,
+    predicted_label VARCHAR(50),
+    result VARCHAR(50),
+    region_code VARCHAR(100),
+    authentic_similarity FLOAT,
+    counterfeit_similarity FLOAT,
+    ood_score FLOAT,
+    error_message TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- =====================================================================
 -- Indexes
 -- =====================================================================
 
@@ -307,6 +397,17 @@ CREATE INDEX idx_processing_runs_idempotency_key ON processing_runs(idempotency_
 CREATE INDEX idx_processing_runs_stage ON processing_runs(stage);
 CREATE INDEX idx_processing_runs_status ON processing_runs(status);
 CREATE INDEX idx_processing_runs_scan_session_id ON processing_runs(scan_session_id);
+
+CREATE INDEX idx_ref_dataset_versions_status ON reference_dataset_versions(status);
+CREATE INDEX idx_ref_dataset_members_version ON reference_dataset_members(dataset_version_id);
+CREATE INDEX idx_ref_dataset_members_image ON reference_dataset_members(reference_image_id);
+CREATE INDEX idx_ref_dataset_members_split ON reference_dataset_members(split);
+CREATE INDEX idx_ref_label_reviews_item ON reference_label_reviews(reference_item_id);
+CREATE INDEX idx_ref_label_reviews_image ON reference_label_reviews(reference_image_id);
+CREATE INDEX idx_threshold_profiles_status ON threshold_profiles(status);
+CREATE INDEX idx_evaluation_runs_status ON evaluation_runs(status);
+CREATE INDEX idx_evaluation_items_run ON evaluation_items(evaluation_run_id);
+CREATE INDEX idx_evaluation_items_result ON evaluation_items(result);
 
 -- =====================================================================
 -- Seed Data
@@ -383,6 +484,10 @@ CREATE TABLE reference_embeddings (
 );
 CREATE INDEX idx_reference_embeddings_ref_image ON reference_embeddings(reference_image_id);
 CREATE INDEX idx_reference_embeddings_hnsw ON reference_embeddings USING hnsw (embedding vector_cosine_ops);
+
+-- Default threshold profile
+INSERT INTO threshold_profiles (id, profile_name, profile_version, embedding_model_version, reference_dataset_version, strong_match_threshold, mismatch_threshold, ood_threshold, counterfeit_similarity_threshold, min_required_regions, require_all_regions, status) VALUES
+    ('30000000-0000-0000-0000-000000000001', 'texture_baseline_default', 'v0.1.0', 'texture_baseline_v0.1.0', 'synthetic_lv_monogram_v0.1.0', 0.85, 0.50, 0.40, 0.50, 5, TRUE, 'active');
 
 -- Model Version
 INSERT INTO model_versions (id, model_name, model_version, model_type, artifact_uri, description, is_active) VALUES

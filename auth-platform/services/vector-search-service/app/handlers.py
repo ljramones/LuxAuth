@@ -68,7 +68,10 @@ async def search_similar(
             FROM reference_embeddings re
             JOIN reference_images ri ON ri.id = re.reference_image_id
             JOIN reference_items rit ON rit.id = ri.reference_item_id
+            LEFT JOIN reference_dataset_members rdm ON rdm.reference_image_id = ri.id
+            LEFT JOIN reference_dataset_versions rdv ON rdv.id = rdm.dataset_version_id
             WHERE 1=1 {region_filter}
+              AND (rdm.id IS NULL OR (rdm.include_in_search = TRUE AND rdv.status != 'retired'))
             ORDER BY re.embedding <=> (SELECT embedding FROM embeddings WHERE image_asset_id = :iid)
             LIMIT :limit
             """

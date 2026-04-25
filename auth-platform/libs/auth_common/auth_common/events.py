@@ -24,6 +24,13 @@ class EventTypes:
     CERTIFICATE_ISSUED = "certificate.issued"
     EXPERT_REVIEW_RECORDED = "expert_review.recorded"
     PROCESSING_FAILED = "processing.failed"
+    REFERENCE_DATASET_CREATED = "reference.dataset_created"
+    REFERENCE_IMAGE_ADDED_TO_DATASET = "reference.image_added_to_dataset"
+    REFERENCE_LABEL_REVIEW_CREATED = "reference.label_review_created"
+    THRESHOLD_PROFILE_CREATED = "threshold.profile_created"
+    EVALUATION_RUN_STARTED = "evaluation.run_started"
+    EVALUATION_RUN_COMPLETED = "evaluation.run_completed"
+    EVALUATION_RUN_FAILED = "evaluation.run_failed"
 
 
 class EventEnvelope(BaseModel):

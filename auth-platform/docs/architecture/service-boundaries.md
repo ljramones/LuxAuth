@@ -56,6 +56,12 @@ Services that aggregate evidence into decisions, support human review, and issue
 | region-scoring-service | region-scoring-queue | decision-queue |
 | decision-service | decision-queue | — |
 
+## Evaluation Pipeline
+
+The evaluation pipeline is currently implemented as standalone scripts (invoked via `make run-evaluation` and `make evaluation-report`) rather than a dedicated service. This keeps the architecture simple while the platform uses only the `texture_baseline_v0.1.0` hand-crafted feature extractor.
+
+A dedicated **reference-catalog-service** is planned for future phases. It will own reference dataset CRUD, dataset version lifecycle, label review workflows, and threshold profile management. Until then, dataset governance tables live in the shared PostgreSQL database and are managed by ingestion scripts and the evaluation harness.
+
 ## Inter-Service Communication
 
 - **Synchronous (HTTP):** Used for queries that need an immediate response — e.g., scan-session-service fetching a scan recipe, or the decision-service reading region scores.

@@ -116,6 +116,43 @@ Worker activity appears as `processing_message` and `message_processed` log entr
 
 All services retain their direct HTTP `/process/{id}` endpoints for debugging. These bypass the queue and execute processing synchronously.
 
+## Dataset Governance & Evaluation
+
+### Creating a dataset version
+
+```bash
+make generate-synthetic-data     # Create synthetic images
+make ingest-reference-data       # Ingest with dataset version, splits, labels
+```
+
+This creates dataset `synthetic_lv_monogram_v0.1.0` with:
+- 30 reference images (15 authentic, 15 counterfeit)
+- Train/validation/test splits
+- Label reviews for provenance tracking
+
+### Running an evaluation
+
+```bash
+make run-evaluation              # Evaluate test split against search references
+make evaluation-report           # Print human-readable report
+```
+
+### Inspecting data
+
+```sql
+-- Dataset versions
+SELECT dataset_version, status, source_type FROM reference_dataset_versions;
+
+-- Split distribution
+SELECT split, count(*) FROM reference_dataset_members GROUP BY split;
+
+-- Active threshold profile
+SELECT profile_name, strong_match_threshold, mismatch_threshold FROM threshold_profiles WHERE status = 'active';
+
+-- Latest evaluation
+SELECT evaluation_name, status, summary_json FROM evaluation_runs ORDER BY started_at DESC LIMIT 1;
+```
+
 ### Idempotency
 
 Processing is idempotent. Running `make smoke` multiple times is safe — duplicate processing is detected and skipped via the `processing_runs` table.
