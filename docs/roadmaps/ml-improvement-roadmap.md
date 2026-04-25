@@ -66,6 +66,15 @@ These are improvements we intend to implement, roughly in the order listed.
   augmentations (flip, rotate, color jitter) are mild.
 - **Embedding dimension experiment** — compare 128-dim against 256-dim embeddings. Higher
   dimensions may capture more texture detail, but increase storage and search cost.
+  Production learned embeddings may need 512-d or 768-d — this decision must be made
+  before committing to large-scale real reference embeddings
+  (see [ADR-0002](../../auth-platform/docs/architecture/adr-0002-learned-embedding-dimension-and-backbone.md)).
+- **Backbone candidates** — evaluate pretrained ResNet, ConvNeXt, DINOv2-style
+  self-supervised models, and ViT/SigLIP-style visual encoders before first serious
+  gold-set training. The current randomly-initialized ResNet18 is a lifecycle scaffold only.
+- **learned_metric_v1 architecture decision** — make backbone, dimension, and loss
+  decisions before real reference library growth. Changing architecture after large-scale
+  embedding requires full re-embedding of all references.
 
 ### Scoring / Decision
 - **Weighted multi-region scoring** — the current decision engine treats all regions
@@ -138,6 +147,11 @@ infrastructure, real traffic, or scale that does not yet exist.
 | Production model drift monitoring | No production traffic exists to drift against. |
 | Isotonic regression / Platt scaling for threshold calibration | Requires a large enough validation set with real labels. Current sweep-based calibration is appropriate for the dataset sizes available. |
 | SageMaker / Triton production inference | Deferred per ADR-0001 until model lifecycle and throughput warrant managed infrastructure. |
+| Adversarial robustness threat model | No production traffic or adversarial threat surface yet. Important before any public-facing deployment. |
+| Model drift monitoring | Requires production traffic and baseline performance metrics to detect drift against. |
+| Per-brand/material/region threshold calibration | Requires enough labeled real data per category. Current global thresholds are development defaults. |
+| Patch-based region embedding | Design needed before implementation; see [architecture note](../../auth-platform/docs/architecture/patch-based-region-embedding.md). |
+| Explicit OOD detector (Mahalanobis, kNN density) | Requires large enough reference library for meaningful density estimates. Current `1 - max_similarity` is a proxy only. |
 
 ---
 
@@ -198,9 +212,10 @@ infrastructure, real traffic, or scale that does not yet exist.
 
 **Goal:** First meaningful learned model comparison against baseline.
 
-- Enable pretrained (ImageNet) backbone
+- **Decide backbone and embedding dimension before training** — see [ADR-0002](../../auth-platform/docs/architecture/adr-0002-learned-embedding-dimension-and-backbone.md)
+- Enable pretrained backbone (ImageNet ResNet, ConvNeXt, or DINOv2-style)
 - Add stronger augmentations (random erasing, affine, microscopy-aware)
-- Optionally increase embedding dimension to 256
+- Evaluate 128-d vs 256-d vs 512-d embedding dimension
 - Train on gold-set train split — **if the first gold set is too small for meaningful
   training, use it as an evaluation-only benchmark first and defer learned model training
   until sufficient real data exists**
@@ -240,6 +255,7 @@ infrastructure, real traffic, or scale that does not yet exist.
 | Repaired or altered items may confuse authentication logic | Track condition/repair metadata per item and region; route altered regions to expert review |
 | Intra-item image leakage across splits | Enforce split-by-item as a hard validation rule, not just convention; fail promotion if violated |
 | Center-crop discards important edge texture from microscope images | Evaluate multi-crop and padded-resize alternatives before committing to a normalization strategy for real data |
+| **Verified data is the strategic bottleneck** | Architecture is no longer the blocker; sourcing authenticated items and verified counterfeits with documented provenance is. See [Dataset Acquisition Strategy](../roadmaps/dataset-acquisition-strategy.md) |
 
 ---
 

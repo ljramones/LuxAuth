@@ -77,6 +77,12 @@
 - Threshold calibration on real validation set
 - See [ML Improvement Roadmap](roadmaps/ml-improvement-roadmap.md) for the detailed
   phased plan derived from external critique
+- See [Dataset Acquisition Strategy](roadmaps/dataset-acquisition-strategy.md) for the
+  verified data sourcing plan
+- See [ADR-0002: Embedding Dimension and Backbone](../auth-platform/docs/architecture/adr-0002-learned-embedding-dimension-and-backbone.md)
+  for the embedding architecture decision
+- See [Patch-Based Region Embedding](../auth-platform/docs/architecture/patch-based-region-embedding.md)
+  for the multi-crop / patch embedding design note
 
 ### AWS Deployment (When Ready)
 - ECS Fargate for services

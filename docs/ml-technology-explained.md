@@ -228,7 +228,10 @@ The resulting vector is **L2-normalized to unit length** and stored in pgvector.
 
 ## 9. Learned Metric Embeddings
 
-`learned_metric_v0.1.0` is a PyTorch metric-learning model trained locally on CPU.
+`learned_metric_v0.1.0` is a **lifecycle scaffold** — a PyTorch metric-learning model
+that exists to validate the training → export → register → re-embed → evaluate pipeline.
+It is not a representative learned model and its performance should not be compared
+meaningfully against the hand-crafted baseline.
 
 **Architecture:**
 - **Backbone:** ResNet18 (randomly initialized by default; ImageNet pretrained optional)
@@ -243,10 +246,19 @@ The resulting vector is **L2-normalized to unit length** and stored in pgvector.
 - **Splits:** Only `train` split images with `include_in_training=TRUE` are used
 - **Validation:** Monitored on `validation` split
 
-**Current limitation:** The learned model is a lifecycle prototype. On synthetic data,
-it underperforms the hand-crafted baseline because 10 epochs on 18 images with a
-randomly initialized ResNet18 does not learn useful texture representations. Real
-training requires governed real datasets with sufficient image diversity.
+**Why it underperforms the baseline:** 10 epochs on 18 synthetic images with a randomly
+initialized ResNet18 cannot learn useful texture representations. This is expected and
+is not a meaningful baseline-vs-learned comparison — it only proves that the ML lifecycle
+machinery works. A meaningful learned model requires a pretrained backbone, real governed
+datasets, and substantially more training data. See
+[ADR-0002](../auth-platform/docs/architecture/adr-0002-learned-embedding-dimension-and-backbone.md)
+for the embedding dimension and backbone decision that must be made before serious
+learned-model training.
+
+**Future embedding dimensions:** Production learned embeddings may need 512 or 768
+dimensions rather than 128. Changing embedding dimension after a large reference library
+is built requires re-embedding all references, so this decision should be made before
+committing to large-scale real reference embeddings.
 
 **Model artifacts:**
 - Exported to S3: `s3://auth-platform-ml-artifacts/models/{version}/model.pt`
@@ -274,8 +286,10 @@ similarity(A, B) = dot(A, B) / (|A| × |B|)
 
 For unit-normalized vectors (as LuxAuth uses), this simplifies to the dot product.
 Values range from -1 (opposite) to +1 (identical). The current local scoring rules
-use these approximate ranges, which are development defaults and not validated
-production thresholds:
+use these approximate ranges, which are **global development defaults** and not validated
+production thresholds. Future thresholds should be scoped by brand, material, and region
+when real data exists — a threshold that works for leather grain may not work for hardware
+engraving:
 - \> 0.85: strong match
 - 0.50–0.85: moderate similarity
 - < 0.50: low similarity or mismatch
@@ -560,7 +574,9 @@ The backend is **device-agnostic by design**:
   calibration profiles have been created.
 - **No production auth/security layer.** No JWT authentication, RBAC, or rate limiting.
 - **No cloud infrastructure-as-code.** Terraform/CDK deferred until AWS deployment.
-- **Learned model is not meaningful** until trained on sufficient real data with verified labels.
+- **Learned model is a lifecycle scaffold only** — learned_metric_v0.1.0 validates the
+  ML pipeline machinery, not learned embedding quality. Its underperformance versus the
+  baseline is not a meaningful comparison.
 - **Public datasets validate texture behavior only**, not luxury goods discrimination.
 - **No object-lock or immutability enforcement** beyond S3 key conventions and
   application-level controls.
@@ -568,12 +584,26 @@ The backend is **device-agnostic by design**:
   replaced components, or third-party restoration that affect region-level evidence.
   Condition tracking and repair-aware routing to expert review are planned
   (see [ML Improvement Roadmap](roadmaps/ml-improvement-roadmap.md)).
-- **OOD detection is basic** (`1 - max_similarity`). More robust methods (Mahalanobis
-  distance, kNN density) require larger reference datasets.
+- **OOD detection is a simple similarity-derived proxy** (`1 - max_similarity`), not a
+  full OOD detector. More robust methods (Mahalanobis distance, kNN density, Isolation
+  Forest) require larger reference datasets and are planned as a separate roadmap item.
 - **Center-crop normalization may discard edge texture** from rectangular microscope
   captures. Multi-crop and padded-resize alternatives are planned for evaluation.
 - **Queue-driven pipeline is not latency-optimized** for real-time mobile use. Result
   orchestration (polling, webhooks, synchronous fast-path) is future product work.
+- **No adversarial robustness analysis.** The system has not been evaluated against
+  adversarial inputs, counterfeit-aware evasion, or deliberately crafted images. A threat
+  model for adversarial robustness is future work.
+- **Patch-based or multi-crop embedding may be necessary** before large reference
+  libraries are built. The current center-crop approach processes one global view per
+  image; patch-level embeddings could capture region detail that center-crop misses.
+  See [Patch-Based Region Embedding](../auth-platform/docs/architecture/patch-based-region-embedding.md).
+- **Embedding dimension is locked at 128** for both baseline and learned models. Production
+  learned embeddings may need 512–768 dimensions. Changing dimension after reference
+  library growth requires full re-embedding.
+  See [ADR-0002](../auth-platform/docs/architecture/adr-0002-learned-embedding-dimension-and-backbone.md).
+- **Verified data is the strategic bottleneck**, not architecture. See
+  [Dataset Acquisition Strategy](roadmaps/dataset-acquisition-strategy.md).
 
 ---
 
@@ -638,6 +668,9 @@ ship prematurely.
 - [Event Flow](../auth-platform/docs/architecture/event-flow.md)
 - [Service Boundaries](../auth-platform/docs/architecture/service-boundaries.md)
 - [ADR-0001: Defer SageMaker](../auth-platform/docs/architecture/adr-0001-defer-sagemaker.md)
+- [ADR-0002: Embedding Dimension and Backbone](../auth-platform/docs/architecture/adr-0002-learned-embedding-dimension-and-backbone.md)
+- [Patch-Based Region Embedding](../auth-platform/docs/architecture/patch-based-region-embedding.md)
+- [Dataset Acquisition Strategy](roadmaps/dataset-acquisition-strategy.md)
 - [Phase 4: Real Image Baseline](../auth-platform/docs/architecture/phase-4-real-image-baseline.md)
 - [Phase 5: Dataset Governance](../auth-platform/docs/architecture/phase-5-dataset-governance-evaluation.md)
 - [Phase 7: ML Diagnostics](../auth-platform/docs/architecture/phase-7-ml-diagnostics-calibration.md)
