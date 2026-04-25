@@ -104,6 +104,58 @@ def main():
                 print(f"  {region}: expected={expected}, predicted={predicted}, "
                       f"auth_sim={auth_sim:.4f}, counter_sim={counter_sim:.4f}")
 
+    # Confusion matrix
+    cur.execute("""
+        SELECT expected_label, predicted_label, count(*)
+        FROM evaluation_items WHERE evaluation_run_id = %s
+        GROUP BY expected_label, predicted_label
+        ORDER BY expected_label, predicted_label
+    """, (str(run["id"]),))
+    confusion_rows = cur.fetchall()
+
+    if confusion_rows:
+        print(f"\n{'─' * 60}")
+        print("  CONFUSION MATRIX")
+        print(f"{'─' * 60}")
+        current_expected = None
+        for expected, predicted, count in confusion_rows:
+            if expected != current_expected:
+                print(f"\n  Expected {expected}:")
+                current_expected = expected
+            print(f"    → {predicted}: {count}")
+
+    # Most ambiguous (closest auth/counter similarity)
+    cur.execute("""
+        SELECT reference_image_id, region_code, expected_label, predicted_label,
+               authentic_similarity, counterfeit_similarity,
+               ABS(authentic_similarity - counterfeit_similarity) as diff
+        FROM evaluation_items WHERE evaluation_run_id = %s
+        ORDER BY diff ASC LIMIT 5
+    """, (str(run["id"]),))
+    ambiguous = cur.fetchall()
+    if ambiguous:
+        print(f"\n{'─' * 60}")
+        print("  MOST AMBIGUOUS CASES (smallest auth/counter gap)")
+        print(f"{'─' * 60}")
+        for ref_id, region, expected, predicted, auth_sim, counter_sim, diff in ambiguous:
+            print(f"  {region}: expected={expected}, predicted={predicted}, "
+                  f"auth={auth_sim:.4f}, counter={counter_sim:.4f}, gap={diff:.4f}")
+
+    # Highest OOD
+    cur.execute("""
+        SELECT reference_image_id, region_code, expected_label, predicted_label,
+               ood_score, authentic_similarity, counterfeit_similarity
+        FROM evaluation_items WHERE evaluation_run_id = %s AND ood_score IS NOT NULL
+        ORDER BY ood_score DESC LIMIT 5
+    """, (str(run["id"]),))
+    ood_cases = cur.fetchall()
+    if ood_cases:
+        print(f"\n{'─' * 60}")
+        print("  HIGHEST OOD SCORES")
+        print(f"{'─' * 60}")
+        for ref_id, region, expected, predicted, ood, auth_sim, counter_sim in ood_cases:
+            print(f"  {region}: ood={ood:.4f}, expected={expected}, predicted={predicted}")
+
     print(f"\n{'=' * 60}")
     cur.close()
     conn.close()

@@ -4,6 +4,7 @@
 Usage: python scripts/compare_evaluations.py
 """
 
+import argparse
 import json
 import sys
 import psycopg2
@@ -12,18 +13,33 @@ DB_DSN = "postgresql://authplatform:authplatform@localhost:5432/authplatform"
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--models", nargs="*", default=None, help="Model versions to compare")
+    args = parser.parse_args()
+
     conn = psycopg2.connect(DB_DSN)
     cur = conn.cursor()
 
     # Get latest evaluation for each embedding model
-    cur.execute("""
-        SELECT DISTINCT ON (embedding_model_version)
-            id, evaluation_name, embedding_model_version, reference_dataset_version,
-            threshold_profile, status, summary_json
-        FROM evaluation_runs
-        WHERE status = 'COMPLETED'
-        ORDER BY embedding_model_version, started_at DESC
-    """)
+    if args.models:
+        placeholders = ",".join(["%s"] * len(args.models))
+        cur.execute(f"""
+            SELECT DISTINCT ON (embedding_model_version)
+                id, evaluation_name, embedding_model_version, reference_dataset_version,
+                threshold_profile, status, summary_json
+            FROM evaluation_runs
+            WHERE status = 'COMPLETED' AND embedding_model_version IN ({placeholders})
+            ORDER BY embedding_model_version, started_at DESC
+        """, args.models)
+    else:
+        cur.execute("""
+            SELECT DISTINCT ON (embedding_model_version)
+                id, evaluation_name, embedding_model_version, reference_dataset_version,
+                threshold_profile, status, summary_json
+            FROM evaluation_runs
+            WHERE status = 'COMPLETED'
+            ORDER BY embedding_model_version, started_at DESC
+        """)
     cols = [desc[0] for desc in cur.description]
     runs = [dict(zip(cols, row)) for row in cur.fetchall()]
 

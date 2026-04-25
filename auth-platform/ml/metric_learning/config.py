@@ -11,6 +11,11 @@ class TrainingConfig:
     embedding_dim: int = 128
     input_size: int = 224
 
+    # Backbone
+    frozen_backbone: bool = False
+    pretrained_backbone: bool = False  # requires internet; default off
+    augmentations: bool = True
+
     # Training
     epochs: int = 10
     batch_size: int = 8

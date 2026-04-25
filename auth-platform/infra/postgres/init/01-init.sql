@@ -267,6 +267,28 @@ CREATE TABLE training_runs (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE ml_experiments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    experiment_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    dataset_version VARCHAR(255),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE ml_experiment_runs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    experiment_id UUID REFERENCES ml_experiments(id),
+    training_run_id UUID REFERENCES training_runs(id),
+    model_name VARCHAR(255),
+    model_version VARCHAR(100),
+    dataset_version VARCHAR(255),
+    config_json JSONB,
+    metrics_json JSONB,
+    artifact_uri VARCHAR(1024),
+    status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- =====================================================================
 -- Dataset Governance
 -- =====================================================================
@@ -430,6 +452,9 @@ CREATE INDEX idx_threshold_profiles_status ON threshold_profiles(status);
 CREATE INDEX idx_evaluation_runs_status ON evaluation_runs(status);
 CREATE INDEX idx_evaluation_items_run ON evaluation_items(evaluation_run_id);
 CREATE INDEX idx_evaluation_items_result ON evaluation_items(result);
+CREATE INDEX idx_ml_experiments_name ON ml_experiments(experiment_name);
+CREATE INDEX idx_ml_experiment_runs_experiment ON ml_experiment_runs(experiment_id);
+CREATE INDEX idx_ml_experiment_runs_model ON ml_experiment_runs(model_name, model_version);
 
 -- =====================================================================
 -- Seed Data

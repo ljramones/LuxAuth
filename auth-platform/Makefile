@@ -1,4 +1,4 @@
-.PHONY: up down logs ps init test lint format smoke clean health generate-synthetic-data ingest-reference-data smoke-real-images reset-local-data seed-dataset-version run-evaluation evaluation-report train-metric-model reembed-reference-data compare-evaluations
+.PHONY: up down logs ps init test lint format smoke clean health generate-synthetic-data ingest-reference-data smoke-real-images reset-local-data seed-dataset-version run-evaluation evaluation-report train-metric-model reembed-reference-data compare-evaluations analyze-embeddings inspect-neighbors calibrate-thresholds export-projection
 
 up:
 	docker compose up --build -d
@@ -55,13 +55,25 @@ evaluation-report:
 	python3 scripts/print_evaluation_report.py
 
 train-metric-model:
-	python3 scripts/train_model.py
+	python3 scripts/train_model.py $(if $(MODEL_VERSION),--model-version $(MODEL_VERSION))
 
 reembed-reference-data:
 	python3 scripts/reembed_reference_dataset.py --model $(or $(MODEL),texture_baseline_v0.1.0)
 
 compare-evaluations:
-	python3 scripts/compare_evaluations.py
+	python3 scripts/compare_evaluations.py $(if $(MODELS),--models $(MODELS))
+
+analyze-embeddings:
+	python3 scripts/analyze_embeddings.py --model $(or $(MODEL),texture_baseline_v0.1.0)
+
+inspect-neighbors:
+	python3 scripts/inspect_neighbors.py --model $(or $(MODEL),texture_baseline_v0.1.0) --output reports/neighbors
+
+calibrate-thresholds:
+	python3 scripts/calibrate_thresholds.py --model $(or $(MODEL),texture_baseline_v0.1.0)
+
+export-projection:
+	python3 scripts/export_embedding_projection.py --model $(or $(MODEL),texture_baseline_v0.1.0)
 
 clean:
 	docker compose down -v --rmi local

@@ -22,13 +22,21 @@ def main():
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--dataset", default="synthetic_lv_monogram_v0.1.0")
+    parser.add_argument("--model-version", default="v0.1.0", help="Model version, e.g. v0.1.0, v0.1.1")
+    parser.add_argument("--frozen-backbone", action="store_true")
+    parser.add_argument("--pretrained", action="store_true")
+    parser.add_argument("--no-augmentations", action="store_true")
     args = parser.parse_args()
 
     config = TrainingConfig(
+        model_version=args.model_version,
         epochs=args.epochs,
         learning_rate=args.lr,
         batch_size=args.batch_size,
         dataset_version=args.dataset,
+        frozen_backbone=args.frozen_backbone,
+        pretrained_backbone=args.pretrained,
+        augmentations=not args.no_augmentations,
     )
 
     print("=" * 60)
@@ -49,11 +57,12 @@ def main():
 
     print("\nExporting model artifact...")
     artifact_uri = export_model(result["model"], result, config)
-    print(f"\nModel registered: {config.model_name}_{config.model_version}")
+    full_version = f"{config.model_name}_{config.model_version}"
+    print(f"\nModel registered: {full_version}")
     print(f"Artifact: {artifact_uri}")
-    print("\nNext steps:")
-    print("  make reembed-reference-data MODEL=learned_metric_v0.1.0")
-    print("  make run-evaluation MODEL=learned_metric_v0.1.0")
+    print(f"\nNext steps:")
+    print(f"  make reembed-reference-data MODEL={full_version}")
+    print(f"  make run-evaluation MODEL={full_version}")
 
 
 if __name__ == "__main__":
