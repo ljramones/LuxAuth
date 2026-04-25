@@ -1,0 +1,242 @@
+x-service-common: &service-common
+  restart: unless-stopped
+  networks:
+    - auth-platform-net
+  depends_on:
+    postgres:
+      condition: service_healthy
+    localstack:
+      condition: service_healthy
+  environment: &service-env
+    DATABASE_URL: postgresql+asyncpg://authplatform:authplatform@postgres:5432/authplatform
+    AWS_ENDPOINT_URL: http://localstack:4566
+    AWS_ACCESS_KEY_ID: test
+    AWS_SECRET_ACCESS_KEY: test
+    AWS_DEFAULT_REGION: us-east-1
+    LOG_LEVEL: DEBUG
+    CORRELATION_HEADER: X-Correlation-ID
+
+services:
+  # ─── Infrastructure ────────────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: auth-platform-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: authplatform
+      POSTGRES_PASSWORD: authplatform
+      POSTGRES_DB: authplatform
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authplatform"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - auth-platform-net
+
+  localstack:
+    image: localstack/localstack:3
+    container_name: auth-platform-localstack
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: s3,sqs
+      DEBUG: 1
+    volumes:
+      - localstack-data:/var/lib/localstack
+      - ./infra/localstack/init:/etc/localstack/init/ready.d
+    healthcheck:
+      test: ["CMD-SHELL", "awslocal s3 ls || exit 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+    networks:
+      - auth-platform-net
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: auth-platform-pgadmin
+    profiles:
+      - tools
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@authplatform.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - auth-platform-net
+
+  # ─── Capture Layer (81xx) ──────────────────────────────────────────
+  scan-session-service:
+    <<: *service-common
+    build:
+      context: .
+      dockerfile: services/scan-session-service/Dockerfile
+    container_name: auth-platform-scan-session-service
+    ports:
+      - "8101:8101"
+    environment:
+      <<: *service-env
+      SERVICE_NAME: scan-session-service
+      SERVICE_PORT: "8101"
+
+  scan-recipe-service:
+    <<: *service-common
+    build:
+      context: .
+      dockerfile: services/scan-recipe-service/Dockerfile
+    container_name: auth-platform-scan-recipe-service
+    ports:
+      - "8102:8102"
+    environment:
+      <<: *service-env
+      SERVICE_NAME: scan-recipe-service
+      SERVICE_PORT: "8102"
+
+  device-service:
+    <<: *service-common
+    build:
+      context: .
+      dockerfile: services/device-service/Dockerfile
+    container_name: auth-platform-device-service
+    ports:
+      - "8103:8103"
+    environment:
+      <<: *service-env
+      SERVICE_NAME: device-service
+      SERVICE_PORT: "8103"
+
+  evidence-asset-service:
+    <<: *service-common
+    build:
+      context: .
+      dockerfile: services/evidence-asset-service/Dockerfile
+    container_name: auth-platform-evidence-asset-service
+    ports:
+      - "8104:8104"
+    environment:
+      <<: *service-env
+      SERVICE_NAME: evidence-asset-service
+      SERVICE_PORT: "8104"
+
+  # ─── Analysis Layer (82xx) ─────────────────────────────────────────
+  image-quality-service:
+    <<: *service-common
+    build:
+      context: .
+      dockerfile: services/image-quality-service/Dockerfile
+    container_name: auth-platform-image-quality-service
+    ports:
+      - "8201:8201"
+    environment:
+      <<: *service-env
+      SERVICE_NAME: image-quality-service
+      SERVICE_PORT: "8201"
+
+  normalization-service:
+    <<: *service-common
+    build:
+      context: .
+      dockerfile: services/normalization-service/Dockerfile
+    container_name: auth-platform-normalization-service
+    ports:
+      - "8202:8202"
+    environment:
+      <<: *service-env
+      SERVICE_NAME: normalization-service
+      SERVICE_PORT: "8202"
+
+  embedding-service:
+    <<: *service-common
+    build:
+      context: .
+      dockerfile: services/embedding-service/Dockerfile
+    container_name: auth-platform-embedding-service
+    ports:
+      - "8203:8203"
+    environment:
+      <<: *service-env
+      SERVICE_NAME: embedding-service
+      SERVICE_PORT: "8203"
+
+  vector-search-service:
+    <<: *service-common
+    build:
+      context: .
+      dockerfile: services/vector-search-service/Dockerfile
+    container_name: auth-platform-vector-search-service
+    ports:
+      - "8204:8204"
+    environment:
+      <<: *service-env
+      SERVICE_NAME: vector-search-service
+      SERVICE_PORT: "8204"
+
+  region-scoring-service:
+    <<: *service-common
+    build:
+      context: .
+      dockerfile: services/region-scoring-service/Dockerfile
+    container_name: auth-platform-region-scoring-service
+    ports:
+      - "8205:8205"
+    environment:
+      <<: *service-env
+      SERVICE_NAME: region-scoring-service
+      SERVICE_PORT: "8205"
+
+  # ─── Decision Layer (83xx) ─────────────────────────────────────────
+  decision-service:
+    <<: *service-common
+    build:
+      context: .
+      dockerfile: services/decision-service/Dockerfile
+    container_name: auth-platform-decision-service
+    ports:
+      - "8301:8301"
+    environment:
+      <<: *service-env
+      SERVICE_NAME: decision-service
+      SERVICE_PORT: "8301"
+
+  review-service:
+    <<: *service-common
+    build:
+      context: .
+      dockerfile: services/review-service/Dockerfile
+    container_name: auth-platform-review-service
+    ports:
+      - "8302:8302"
+    environment:
+      <<: *service-env
+      SERVICE_NAME: review-service
+      SERVICE_PORT: "8302"
+
+  certificate-service:
+    <<: *service-common
+    build:
+      context: .
+      dockerfile: services/certificate-service/Dockerfile
+    container_name: auth-platform-certificate-service
+    ports:
+      - "8303:8303"
+    environment:
+      <<: *service-env
+      SERVICE_NAME: certificate-service
+      SERVICE_PORT: "8303"
+
+volumes:
+  pgdata:
+  localstack-data:
+
+networks:
+  auth-platform-net:
+    name: auth-platform-net
+    driver: bridge
