@@ -14,6 +14,7 @@ class ServiceSettings(BaseSettings):
     sqs_embedding_queue: str = "embedding-queue"
     sqs_vector_search_queue: str = "vector-search-queue"
     consume_queue: str = "embedding-queue"
+    embedding_model_version: str = "texture_baseline_v0.1.0"
 
     model_config = {"env_prefix": "", "extra": "ignore"}
 

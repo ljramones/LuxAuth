@@ -49,11 +49,21 @@ async def search_similar(
         logger.warning("no_reference_embeddings", fallback="stub")
         return await _stub_result(image_asset_id, scan_session_id, region_code, db_session)
 
+    # Determine query embedding's model version for matching
+    emb_model_row = await db_session.execute(
+        text("SELECT embedding_model_version FROM embeddings WHERE image_asset_id = :id"),
+        {"id": str(image_asset_id)},
+    )
+    query_model_version = emb_model_row.scalar_one_or_none()
+
     # Real pgvector search against reference_embeddings
     region_filter = "AND ri.region_code = :region" if region_code else ""
+    model_filter = "AND re.embedding_model_version = :model_version" if query_model_version else ""
     params: dict = {"iid": str(image_asset_id), "limit": settings.top_k * 2}
     if region_code:
         params["region"] = region_code
+    if query_model_version:
+        params["model_version"] = query_model_version
 
     search_result = await db_session.execute(
         text(
@@ -70,7 +80,7 @@ async def search_similar(
             JOIN reference_items rit ON rit.id = ri.reference_item_id
             LEFT JOIN reference_dataset_members rdm ON rdm.reference_image_id = ri.id
             LEFT JOIN reference_dataset_versions rdv ON rdv.id = rdm.dataset_version_id
-            WHERE 1=1 {region_filter}
+            WHERE 1=1 {region_filter} {model_filter}
               AND (rdm.id IS NULL OR (rdm.include_in_search = TRUE AND rdv.status != 'retired'))
             ORDER BY re.embedding <=> (SELECT embedding FROM embeddings WHERE image_asset_id = :iid)
             LIMIT :limit

@@ -1,4 +1,10 @@
+import io
 from uuid import UUID
+
+try:
+    import torch
+except ImportError:
+    torch = None  # type: ignore
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,13 +23,76 @@ from app.settings import settings
 logger = get_logger(settings.service_name)
 
 EMBEDDING_DIM = 128
-EMBEDDING_MODEL_VERSION = "texture_baseline_v0.1.0"
+_learned_model = None
+
+
+def _get_learned_model():
+    """Lazy-load the learned metric model from S3."""
+    global _learned_model
+    if _learned_model is not None:
+        return _learned_model
+
+    try:
+        # Import model class
+        import sys
+        sys.path.insert(0, "/app/ml")
+        from metric_learning.model import EmbeddingModel
+
+        # Find artifact in DB — use sync psycopg2 for simplicity
+        import psycopg2
+        conn = psycopg2.connect(
+            f"postgresql://authplatform:authplatform@{settings.database_url.split('@')[1].split('/')[0]}/authplatform"
+        )
+        cur = conn.cursor()
+        cur.execute("SELECT artifact_uri FROM model_versions WHERE model_version = %s AND is_active = TRUE",
+                    (settings.embedding_model_version,))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if not row:
+            raise ValueError(f"No active model: {settings.embedding_model_version}")
+
+        uri = row[0]
+        parts = uri.replace("s3://", "").split("/", 1)
+        model_bytes = download_file(parts[0], parts[1])
+
+        model = EmbeddingModel(embedding_dim=EMBEDDING_DIM)
+        model.load_state_dict(torch.load(io.BytesIO(model_bytes), weights_only=True, map_location="cpu"))
+        model.eval()
+        _learned_model = model
+        logger.info("learned_model_loaded", version=settings.embedding_model_version)
+        return model
+    except Exception as exc:
+        logger.error("learned_model_load_failed", error=str(exc))
+        raise
+
+
+def _embed_texture_baseline(norm_bytes: bytes) -> list[float]:
+    return compute_texture_embedding(norm_bytes, dim=EMBEDDING_DIM)
+
+
+def _embed_learned_metric(norm_bytes: bytes) -> list[float]:
+    try:
+        import sys
+        sys.path.insert(0, "/app/ml")
+        from metric_learning.transforms import preprocess_for_inference
+        model = _get_learned_model()
+        tensor = preprocess_for_inference(norm_bytes, input_size=224)
+        with torch.no_grad():
+            embedding = model(tensor)
+        return embedding.squeeze().tolist()
+    except ImportError:
+        logger.warning("torch_not_available_falling_back_to_baseline")
+        return _embed_texture_baseline(norm_bytes)
 
 
 async def generate_embedding(
     image_asset_id: UUID, db_session: AsyncSession
 ) -> EmbeddingRecord:
-    """Generate texture baseline embedding from normalized image."""
+    """Generate embedding using the configured backend."""
+
+    model_version = settings.embedding_model_version
 
     # Look up normalized image URI
     row = await db_session.execute(
@@ -38,8 +107,11 @@ async def generate_embedding(
     uri_parts = norm_uri.replace("s3://", "").split("/", 1)
     norm_bytes = download_file(uri_parts[0], uri_parts[1])
 
-    # Compute real texture embedding
-    embedding = compute_texture_embedding(norm_bytes, dim=EMBEDDING_DIM)
+    # Select backend
+    if "learned_metric" in model_version:
+        embedding = _embed_learned_metric(norm_bytes)
+    else:
+        embedding = _embed_texture_baseline(norm_bytes)
 
     # Format as pgvector literal
     vec_str = "[" + ",".join(f"{v:.8f}" for v in embedding) + "]"
@@ -60,7 +132,7 @@ async def generate_embedding(
         {
             "image_asset_id": str(image_asset_id),
             "embedding": vec_str,
-            "model_version": EMBEDDING_MODEL_VERSION,
+            "model_version": model_version,
         },
     )
     await db_session.commit()
@@ -77,7 +149,7 @@ async def generate_embedding(
         "EMBEDDING_GENERATED",
         image_id=image_asset_id,
         scan_session_id=scan_session_id,
-        payload={"embedding_model_version": EMBEDDING_MODEL_VERSION, "dim": EMBEDDING_DIM},
+        payload={"embedding_model_version": model_version, "dim": EMBEDDING_DIM},
     )
 
     envelope = EventEnvelope(
@@ -89,14 +161,14 @@ async def generate_embedding(
         payload={
             "image_asset_id": str(image_asset_id),
             "scan_session_id": str(scan_session_id) if scan_session_id else None,
-            "embedding_model_version": EMBEDDING_MODEL_VERSION,
+            "embedding_model_version": model_version,
         },
     )
     send_message(settings.sqs_vector_search_queue, envelope)
-    logger.info("embedding_generated", image_asset_id=str(image_asset_id))
+    logger.info("embedding_generated", image_asset_id=str(image_asset_id), model=model_version)
 
     return EmbeddingRecord(
         image_asset_id=image_asset_id,
         embedding=embedding[:10],
-        embedding_model_version=EMBEDDING_MODEL_VERSION,
+        embedding_model_version=model_version,
     )

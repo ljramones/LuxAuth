@@ -248,6 +248,25 @@ CREATE TABLE processing_runs (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE training_runs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    model_name VARCHAR(255) NOT NULL,
+    model_version VARCHAR(100) NOT NULL,
+    dataset_version VARCHAR(255) NOT NULL,
+    embedding_dimension INT,
+    loss_type VARCHAR(100),
+    status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    config_json JSONB,
+    metrics_json JSONB,
+    artifact_uri VARCHAR(1024),
+    metadata_uri VARCHAR(1024),
+    error_message TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- =====================================================================
 -- Dataset Governance
 -- =====================================================================
@@ -398,6 +417,9 @@ CREATE INDEX idx_processing_runs_stage ON processing_runs(stage);
 CREATE INDEX idx_processing_runs_status ON processing_runs(status);
 CREATE INDEX idx_processing_runs_scan_session_id ON processing_runs(scan_session_id);
 
+CREATE INDEX idx_training_runs_status ON training_runs(status);
+CREATE INDEX idx_training_runs_model ON training_runs(model_name, model_version);
+
 CREATE INDEX idx_ref_dataset_versions_status ON reference_dataset_versions(status);
 CREATE INDEX idx_ref_dataset_members_version ON reference_dataset_members(dataset_version_id);
 CREATE INDEX idx_ref_dataset_members_image ON reference_dataset_members(reference_image_id);
@@ -487,7 +509,8 @@ CREATE INDEX idx_reference_embeddings_hnsw ON reference_embeddings USING hnsw (e
 
 -- Default threshold profile
 INSERT INTO threshold_profiles (id, profile_name, profile_version, embedding_model_version, reference_dataset_version, strong_match_threshold, mismatch_threshold, ood_threshold, counterfeit_similarity_threshold, min_required_regions, require_all_regions, status) VALUES
-    ('30000000-0000-0000-0000-000000000001', 'texture_baseline_default', 'v0.1.0', 'texture_baseline_v0.1.0', 'synthetic_lv_monogram_v0.1.0', 0.85, 0.50, 0.40, 0.50, 5, TRUE, 'active');
+    ('30000000-0000-0000-0000-000000000001', 'texture_baseline_default', 'v0.1.0', 'texture_baseline_v0.1.0', 'synthetic_lv_monogram_v0.1.0', 0.85, 0.50, 0.40, 0.50, 5, TRUE, 'active'),
+    ('30000000-0000-0000-0000-000000000002', 'learned_metric_default', 'v0.1.0', 'learned_metric_v0.1.0', 'synthetic_lv_monogram_v0.1.0', 0.80, 0.55, 0.45, 0.55, 5, TRUE, 'active');
 
 -- Model Version
 INSERT INTO model_versions (id, model_name, model_version, model_type, artifact_uri, description, is_active) VALUES

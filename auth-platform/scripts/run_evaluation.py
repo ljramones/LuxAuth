@@ -55,8 +55,16 @@ def parse_pgvector(vec_str):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", default="synthetic_lv_monogram_v0.1.0")
-    parser.add_argument("--profile", default="texture_baseline_default")
+    parser.add_argument("--profile", default=None)
+    parser.add_argument("--model", default=None, help="Embedding model version to evaluate")
     args = parser.parse_args()
+
+    # Resolve profile: if --model given, find matching profile; otherwise use default
+    if args.profile is None:
+        if args.model and "learned_metric" in args.model:
+            args.profile = "learned_metric_default"
+        else:
+            args.profile = "texture_baseline_default"
 
     conn = psycopg2.connect(DB_DSN)
     conn.autocommit = True
@@ -82,6 +90,10 @@ def main():
     print(f"Profile: {profile['profile_name']}:{profile['profile_version']}")
     print(f"Thresholds: strong={profile['strong_match_threshold']}, mismatch={profile['mismatch_threshold']}")
 
+    # Determine embedding model version to filter by
+    embedding_model = args.model if args.model else profile["embedding_model_version"]
+    print(f"Embedding model: {embedding_model}")
+
     # Get test-split images with their embeddings
     cur.execute("""
         SELECT dm.reference_image_id, re.embedding, ri.region_code,
@@ -91,8 +103,9 @@ def main():
         JOIN reference_images ri ON ri.id = dm.reference_image_id
         JOIN reference_items rit ON rit.id = ri.reference_item_id
         WHERE dm.dataset_version_id = %s AND dm.include_in_evaluation = TRUE
+              AND re.embedding_model_version = %s
         ORDER BY ri.region_code, rit.authenticity_status
-    """, (str(ds_id),))
+    """, (str(ds_id), embedding_model))
     test_cols = [desc[0] for desc in cur.description]
     test_rows = [dict(zip(test_cols, r)) for r in cur.fetchall()]
     print(f"Test items: {len(test_rows)}")
@@ -109,8 +122,9 @@ def main():
         JOIN reference_images ri ON ri.id = dm.reference_image_id
         JOIN reference_items rit ON rit.id = ri.reference_item_id
         WHERE dm.dataset_version_id = %s AND dm.include_in_search = TRUE
+              AND re.embedding_model_version = %s
         ORDER BY ri.region_code
-    """, (str(ds_id),))
+    """, (str(ds_id), embedding_model))
     search_cols = [desc[0] for desc in cur.description]
     search_rows = [dict(zip(search_cols, r)) for r in cur.fetchall()]
     print(f"Search references: {len(search_rows)}")
@@ -125,7 +139,7 @@ def main():
             embedding_model_version, preprocessing_version, threshold_profile,
             started_at, status)
         VALUES (%s, %s, %s, %s, %s, %s, %s, 'RUNNING')
-    """, (eval_id, eval_name, args.dataset, profile["embedding_model_version"],
+    """, (eval_id, eval_name, args.dataset, embedding_model,
           "normalize_image_v0.1.0", f"{profile['profile_name']}:{profile['profile_version']}", now))
 
     # Evaluate each test item

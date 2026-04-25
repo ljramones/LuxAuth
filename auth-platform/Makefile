@@ -1,4 +1,4 @@
-.PHONY: up down logs ps init test lint format smoke clean health generate-synthetic-data ingest-reference-data smoke-real-images reset-local-data seed-dataset-version run-evaluation evaluation-report
+.PHONY: up down logs ps init test lint format smoke clean health generate-synthetic-data ingest-reference-data smoke-real-images reset-local-data seed-dataset-version run-evaluation evaluation-report train-metric-model reembed-reference-data compare-evaluations
 
 up:
 	docker compose up --build -d
@@ -49,10 +49,19 @@ seed-dataset-version:
 	python3 scripts/ingest_reference_images.py
 
 run-evaluation:
-	python3 scripts/run_evaluation.py
+	python3 scripts/run_evaluation.py $(if $(MODEL),--model $(MODEL))
 
 evaluation-report:
 	python3 scripts/print_evaluation_report.py
+
+train-metric-model:
+	python3 scripts/train_model.py
+
+reembed-reference-data:
+	python3 scripts/reembed_reference_dataset.py --model $(or $(MODEL),texture_baseline_v0.1.0)
+
+compare-evaluations:
+	python3 scripts/compare_evaluations.py
 
 clean:
 	docker compose down -v --rmi local
