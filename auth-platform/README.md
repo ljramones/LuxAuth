@@ -149,10 +149,43 @@ make evaluation-report
 | Smoke test data | `smoke_*` | Pipeline validation, auto-cleaned | `smoke_lab_lv_monogram_batch_001` |
 | Synthetic data | `synthetic_*` | Baseline evaluation | `synthetic_lv_monogram_v0.1.0` |
 | Real lab data | `lab_*` | Real microscope captures | `lab_first_real_batch_001` |
+| Public external | `external_*` | Public texture/material datasets | `external_leadata_v0.1.0` |
 | Production data | (no prefix) | Future production use | — |
 
 Smoke and synthetic data can be regenerated freely. Real lab data is protected by
 a safety guard — destructive operations require `--force` for non-smoke batches.
+
+## External Public Dataset Evaluation
+
+The backend includes a manifest-driven ingestion path for public external texture/material
+datasets. These validate the image pipeline, embeddings, vector search, and diagnostics
+using real public images — they do **not** prove luxury authentication accuracy.
+
+Supported adapters: **LeaData** (microscopic leather textures) and **FabricNET** (microscopic woven fabrics).
+
+Validate a manifest template (no downloaded data required):
+```bash
+make validate-external-manifest MANIFEST=../datasets/manifests/leadata-manifest.template.yaml
+make validate-external-manifest MANIFEST=../datasets/manifests/fabricnet-manifest.template.yaml
+```
+
+Dry-run ingestion (requires dataset files under `datasets/external/`):
+```bash
+make ingest-external-dataset-dry-run MANIFEST=../datasets/manifests/leadata-manifest.yaml
+```
+
+Full ingestion:
+```bash
+make ingest-external-dataset MANIFEST=../datasets/manifests/leadata-manifest.yaml
+```
+
+External datasets use the `external_` prefix and are created as **draft** datasets — never
+automatically activated. Third-party dataset images must not be committed to Git.
+
+See:
+- [Public Dataset Evaluation Plan](../docs/datasets/public-dataset-evaluation-plan.md)
+- [License Notes](../docs/datasets/public-dataset-license-notes.md)
+- [Storage Policy](../docs/datasets/dataset-storage-policy.md)
 
 ## Next Steps
 

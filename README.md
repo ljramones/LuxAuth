@@ -64,6 +64,30 @@ The capture client will:
 - Upload images to the capture-intake-service API
 - Display capture session status and region completeness
 
+## Public External Datasets
+
+LuxAuth includes a controlled external-dataset workflow for evaluating the image pipeline,
+texture embeddings, vector search, ML diagnostics, and dataset-governance tooling before
+real microscope captures are available.
+
+External datasets are staged locally under `datasets/external/`. This folder is gitignored —
+**third-party dataset images must not be committed to the repository.**
+
+| Dataset | Purpose | LuxAuth Use |
+|---|---|---|
+| LeaData | Microscopic leather texture images | Validate leather-grain embedding behavior and nearest-neighbor search |
+| FabricNET | Microscopic woven fabric images | Validate fabric/canvas-like texture embeddings |
+
+These datasets are **not** authentic-vs-counterfeit luxury datasets. They validate pipeline
+and material-texture behavior only, not luxury authentication performance.
+
+Documentation:
+- [Public Dataset Evaluation Plan](docs/datasets/public-dataset-evaluation-plan.md)
+- [License Notes](docs/datasets/public-dataset-license-notes.md)
+- [Storage Policy](docs/datasets/dataset-storage-policy.md)
+- [LeaData](docs/datasets/leadata.md) · [FabricNET](docs/datasets/fabricnet.md)
+- [Manifest Templates](datasets/manifests/README.md) · [Dataset Staging](datasets/README.md)
+
 ## Architecture Decisions
 
 | Decision | Status | Rationale |
