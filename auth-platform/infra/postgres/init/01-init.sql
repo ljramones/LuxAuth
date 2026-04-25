@@ -357,6 +357,71 @@ CREATE TABLE capture_session_images (
 );
 
 -- =====================================================================
+-- Capture Batch (manifest/folder-driven lab ingestion)
+-- =====================================================================
+
+CREATE TABLE capture_batches (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    batch_code VARCHAR(255) NOT NULL UNIQUE,
+    dataset_candidate_name VARCHAR(255),
+    capture_protocol_id UUID REFERENCES capture_protocols(id),
+    device_id UUID REFERENCES devices(id),
+    calibration_profile_id UUID REFERENCES device_calibrations(id),
+    source_type VARCHAR(100) NOT NULL DEFAULT 'lab_capture',
+    status VARCHAR(50) NOT NULL DEFAULT 'CREATED',
+    created_by VARCHAR(255),
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE capture_batch_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    capture_batch_id UUID NOT NULL REFERENCES capture_batches(id),
+    external_item_id VARCHAR(255) NOT NULL,
+    brand VARCHAR(255),
+    category VARCHAR(255),
+    material VARCHAR(255),
+    model VARCHAR(255),
+    production_year INT,
+    authenticity_status VARCHAR(50) NOT NULL,
+    label_confidence VARCHAR(50) NOT NULL DEFAULT 'high',
+    provenance_type VARCHAR(100) NOT NULL DEFAULT 'synthetic',
+    status VARCHAR(50) NOT NULL DEFAULT 'CREATED',
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE capture_batch_images (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    capture_batch_id UUID NOT NULL REFERENCES capture_batches(id),
+    capture_batch_item_id UUID NOT NULL REFERENCES capture_batch_items(id),
+    external_image_id VARCHAR(255),
+    region_code VARCHAR(100) NOT NULL,
+    source_file_path TEXT,
+    raw_object_uri TEXT,
+    normalized_object_uri TEXT,
+    sha256_checksum VARCHAR(64),
+    perceptual_hash VARCHAR(64),
+    width INT,
+    height INT,
+    image_format VARCHAR(20),
+    color_mode VARCHAR(20),
+    quality_status VARCHAR(50),
+    issues JSONB,
+    status VARCHAR(50) NOT NULL DEFAULT 'CREATED',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE capture_batch_validation_reports (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    capture_batch_id UUID NOT NULL REFERENCES capture_batches(id),
+    status VARCHAR(50) NOT NULL,
+    summary_json JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- =====================================================================
 -- Dataset Governance
 -- =====================================================================
 
@@ -530,6 +595,15 @@ CREATE INDEX idx_capture_sessions_status ON capture_sessions(status);
 CREATE INDEX idx_capture_session_images_session ON capture_session_images(capture_session_id);
 CREATE INDEX idx_capture_session_images_region ON capture_session_images(region_code);
 CREATE INDEX idx_capture_session_images_item ON capture_session_images(external_item_id);
+
+CREATE INDEX idx_capture_batches_code ON capture_batches(batch_code);
+CREATE INDEX idx_capture_batches_status ON capture_batches(status);
+CREATE INDEX idx_capture_batch_items_batch ON capture_batch_items(capture_batch_id);
+CREATE INDEX idx_capture_batch_items_ext_id ON capture_batch_items(external_item_id);
+CREATE INDEX idx_capture_batch_images_batch ON capture_batch_images(capture_batch_id);
+CREATE INDEX idx_capture_batch_images_item ON capture_batch_images(capture_batch_item_id);
+CREATE INDEX idx_capture_batch_images_sha ON capture_batch_images(sha256_checksum);
+CREATE INDEX idx_capture_batch_validation_batch ON capture_batch_validation_reports(capture_batch_id);
 
 -- =====================================================================
 -- Seed Data

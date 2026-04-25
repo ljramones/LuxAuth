@@ -1,0 +1,108 @@
+batch_code: smoke_lab_lv_monogram_batch_001
+source_type: lab_capture
+capture_protocol_code: lv_monogram_canvas_handbag_capture
+capture_protocol_version: v0.1.0
+device_code: local_dev_microscope_001
+calibration_profile: local_dev_calibration_v0.1.0
+operator: local_dev
+notes: Synthetic lab capture batch for workflow validation. NOT real product data.
+items:
+- external_item_id: lv_auth_001
+  brand: Louis Vuitton
+  category: handbag
+  material: monogram_canvas
+  model: null
+  production_year: null
+  authenticity_status: CONFIRMED_AUTHENTIC
+  label_confidence: high
+  provenance_type: synthetic
+  notes: Synthetic local-dev sample, not real product data.
+  images:
+  - region_code: EXTERIOR_CANVAS
+    file: lv_auth_001/exterior_canvas_01.png
+  - region_code: FRONT_LOGO_PRINT
+    file: lv_auth_001/front_logo_print_01.png
+  - region_code: INTERIOR_HEAT_STAMP
+    file: lv_auth_001/interior_heat_stamp_01.png
+  - region_code: HARDWARE_ENGRAVING
+    file: lv_auth_001/hardware_engraving_01.png
+  - region_code: STITCHING_DETAIL
+    file: lv_auth_001/stitching_detail_01.png
+- external_item_id: lv_auth_002
+  brand: Louis Vuitton
+  category: handbag
+  material: monogram_canvas
+  model: null
+  production_year: null
+  authenticity_status: CONFIRMED_AUTHENTIC
+  label_confidence: high
+  provenance_type: synthetic
+  notes: Synthetic local-dev sample, not real product data.
+  images:
+  - region_code: EXTERIOR_CANVAS
+    file: lv_auth_002/exterior_canvas_01.png
+  - region_code: FRONT_LOGO_PRINT
+    file: lv_auth_002/front_logo_print_01.png
+  - region_code: INTERIOR_HEAT_STAMP
+    file: lv_auth_002/interior_heat_stamp_01.png
+  - region_code: HARDWARE_ENGRAVING
+    file: lv_auth_002/hardware_engraving_01.png
+  - region_code: STITCHING_DETAIL
+    file: lv_auth_002/stitching_detail_01.png
+- external_item_id: lv_fake_001
+  brand: Louis Vuitton
+  category: handbag
+  material: monogram_canvas
+  model: null
+  production_year: null
+  authenticity_status: CONFIRMED_COUNTERFEIT
+  label_confidence: high
+  provenance_type: synthetic
+  notes: Synthetic local-dev sample, not real product data.
+  images:
+  - region_code: EXTERIOR_CANVAS
+    file: lv_fake_001/exterior_canvas_01.png
+  - region_code: FRONT_LOGO_PRINT
+    file: lv_fake_001/front_logo_print_01.png
+  - region_code: INTERIOR_HEAT_STAMP
+    file: lv_fake_001/interior_heat_stamp_01.png
+  - region_code: HARDWARE_ENGRAVING
+    file: lv_fake_001/hardware_engraving_01.png
+  - region_code: STITCHING_DETAIL
+    file: lv_fake_001/stitching_detail_01.png
+- external_item_id: lv_fake_002
+  brand: Louis Vuitton
+  category: handbag
+  material: monogram_canvas
+  model: null
+  production_year: null
+  authenticity_status: CONFIRMED_COUNTERFEIT
+  label_confidence: high
+  provenance_type: synthetic
+  notes: Synthetic local-dev sample, not real product data.
+  images:
+  - region_code: EXTERIOR_CANVAS
+    file: lv_fake_002/exterior_canvas_01.png
+  - region_code: FRONT_LOGO_PRINT
+    file: lv_fake_002/front_logo_print_01.png
+  - region_code: INTERIOR_HEAT_STAMP
+    file: lv_fake_002/interior_heat_stamp_01.png
+  - region_code: HARDWARE_ENGRAVING
+    file: lv_fake_002/hardware_engraving_01.png
+  - region_code: STITCHING_DETAIL
+    file: lv_fake_002/stitching_detail_01.png
+- external_item_id: lv_incomplete_001
+  brand: Louis Vuitton
+  category: handbag
+  material: monogram_canvas
+  model: null
+  production_year: null
+  authenticity_status: CONFIRMED_AUTHENTIC
+  label_confidence: high
+  provenance_type: synthetic
+  notes: Synthetic local-dev sample, not real product data.
+  images:
+  - region_code: EXTERIOR_CANVAS
+    file: lv_incomplete_001/exterior_canvas_01.png
+  - region_code: FRONT_LOGO_PRINT
+    file: lv_incomplete_001/front_logo_print_01.png

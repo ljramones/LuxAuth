@@ -1,4 +1,4 @@
-.PHONY: up down logs ps init test lint format smoke clean health generate-synthetic-data ingest-reference-data smoke-real-images reset-local-data seed-dataset-version run-evaluation evaluation-report train-metric-model reembed-reference-data compare-evaluations analyze-embeddings inspect-neighbors calibrate-thresholds export-projection smoke-capture-api
+.PHONY: up down logs ps init test lint format smoke clean health generate-synthetic-data ingest-reference-data smoke-real-images reset-local-data seed-dataset-version run-evaluation evaluation-report train-metric-model reembed-reference-data compare-evaluations analyze-embeddings inspect-neighbors calibrate-thresholds export-projection smoke-capture-api generate-lab-capture-batch validate-capture-batch ingest-capture-batch promote-capture-batch smoke-capture-batch
 
 up:
 	docker compose up --build -d
@@ -77,6 +77,21 @@ export-projection:
 
 smoke-capture-api:
 	python3 scripts/smoke_capture_api.py
+
+generate-lab-capture-batch:
+	python3 scripts/generate_lab_capture_batch.py
+
+validate-capture-batch:
+	python3 scripts/validate_capture_batch.py --batch $(BATCH) --auto-create-device
+
+ingest-capture-batch:
+	python3 scripts/ingest_capture_batch.py --batch $(BATCH)
+
+promote-capture-batch:
+	python3 scripts/promote_capture_batch_to_dataset.py --batch $(BATCH) --dataset $(DATASET)
+
+smoke-capture-batch:
+	python3 scripts/smoke_capture_batch.py
 
 clean:
 	docker compose down -v --rmi local
