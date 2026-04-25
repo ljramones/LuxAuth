@@ -33,10 +33,10 @@
 
 ### Embedding Diagnostics
 - 130 embeddings, 128 dimensions
-- Vector norms: mean 1.0 (unit-normalized as expected)
+- Vector norms: mean 1.0 (close to unit length; consistent with expected normalization)
 - NN label agreement: 100% (all fabric images find other fabric images)
 - Pairwise cosine similarity among fabric images: mean ~0.67, range -0.20 to 1.00
-- Good within-dataset texture variation captured by baseline features
+- Within-dataset texture variation appears present based on the similarity range; further analysis needed to confirm whether the baseline features capture meaningful fabric distinctions
 
 ### Nearest-Neighbor Observations
 - Top-3 neighbors all fabric images with similarity 0.90–0.99
@@ -69,7 +69,7 @@
 
 ### Embedding Diagnostics
 - 1200 embeddings, 128 dimensions
-- Vector norms: mean 1.03 (near-unit as expected)
+- Vector norms: mean 1.03 (close to unit length; worth monitoring because embeddings are expected to be normalized)
 - NN label agreement: 99.6% (leather images find other leather images)
 - Mean pairwise similarity: 0.66
 - Similarity range: -0.25 to 1.00
@@ -106,7 +106,7 @@ Both adapters required updates from their original template-based versions:
    distribution across splits may be uneven. A species-stratified split would be better.
 
 4. **No cross-dataset evaluation** — FabricNET and LeaData are evaluated independently.
-   Cross-material embedding behavior not tested.
+   Cross-material embedding behaviour not tested.
 
 ## Disclaimers
 
