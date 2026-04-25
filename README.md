@@ -14,12 +14,12 @@ evidence-processing and similarity-scoring platform — not a simple real/fake c
 ```text
 luxuryAuthentication/
 ├── auth-platform/       Backend services, evidence pipeline, ML, capture APIs
+├── capture-workbench/   Local web UI for microscope capture sessions
 ├── iphone-app/          Future iPhone capture client
 ├── android-app/         Future Android capture client
+├── datasets/            Public dataset staging and manifests
 ├── docs/                Repo-level documentation
-├── ConceptOfOperation.md
-├── OverallSystemDesign.md
-└── targetArchitecture.md
+└── ConceptOfOperation.md
 ```
 
 See [docs/repo-structure.md](docs/repo-structure.md) for details.
@@ -41,11 +41,29 @@ Current capabilities:
 - Manifest-based lab capture batch validation, ingestion, and dataset promotion
 - Idempotent processing, correlation IDs, structured logging, full audit trail
 
+### Local Startup
+
+From the repo root:
+
 ```bash
-cd auth-platform
-docker compose up --build -d
-make health
-make smoke
+make backend-up      # Start backend Docker stack + health check
+make workbench       # Start capture workbench Vite dev server
+```
+
+Or start everything together:
+
+```bash
+make dev             # Backend + workbench in one command
+```
+
+Other commands:
+
+```bash
+make backend-stop    # Stop containers (volumes preserved)
+make backend-health  # Run health check only
+make check           # Verify local prerequisites
+make test            # Run backend tests
+make lint            # Run backend lint + workbench build
 ```
 
 See [auth-platform/README.md](auth-platform/README.md) for the full backend guide.
@@ -63,6 +81,15 @@ The capture client will:
 - Guide the operator through a capture protocol
 - Upload images to the capture-intake-service API
 - Display capture session status and region completeness
+
+## Capture Workbench
+
+`capture-workbench/` is a local web-based operator UI for creating capture sessions,
+uploading microscope image files, inspecting quality results, and completing sessions
+against the local backend. It is a workflow discovery tool — not a production app.
+
+Observations from workbench usage should be recorded in
+[docs/operations/capture-workbench-learning-log.md](docs/operations/capture-workbench-learning-log.md).
 
 ## Public External Datasets
 

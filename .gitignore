@@ -71,6 +71,11 @@ apps/android/build/
 apps/android/local.properties
 apps/android/app/build/
 
+# Node.js
+node_modules/
+dist/
+*.tsbuildinfo
+
 # Reports (regenerable)
 reports/
 
