@@ -1,0 +1,26 @@
+# Capture Session Metadata Template (for live API-driven captures)
+#
+# Use this when capturing via the capture-intake-service API (port 8106)
+# rather than the manifest-based batch workflow.
+#
+# POST /capture-sessions with this as the request body (as JSON).
+
+device_id: "REPLACE_WITH_DEVICE_UUID"
+calibration_id: "REPLACE_WITH_CALIBRATION_UUID"  # optional
+capture_protocol_code: lv_monogram_canvas_handbag_capture
+source_type: api  # api | mobile_app | desktop_client | raspberry_pi
+operator: "REPLACE_WITH_OPERATOR_NAME"
+notes: |
+  Session notes: date, item description, conditions.
+
+# After creating the session, upload images:
+#
+# POST /capture-sessions/{id}/images
+#   file: <image file>
+#   region_code: EXTERIOR_CANVAS
+#   external_item_id: item_001
+#   capture_index: 0
+#
+# Then complete:
+#
+# POST /capture-sessions/{id}/complete

@@ -1,0 +1,58 @@
+# Capture Batch Manifest Template
+#
+# Copy this file to: sample_data/lab_captures/{batch_code}/manifest.yaml
+# Edit the placeholders below.
+#
+# See docs/operations/capture-batch-manifest.md for field reference.
+# See docs/operations/microscope-acceptance-runbook.md for the full workflow.
+
+batch_code: REPLACE_WITH_BATCH_CODE
+source_type: lab_capture  # lab_capture | field_capture | partner_supplied
+capture_protocol_code: lv_monogram_canvas_handbag_capture
+capture_protocol_version: v0.1.0
+device_code: REPLACE_WITH_DEVICE_SERIAL
+calibration_profile: REPLACE_WITH_CALIBRATION_NAME
+operator: REPLACE_WITH_OPERATOR_NAME
+notes: |
+  Describe this capture session: date, location, equipment used,
+  any unusual conditions or observations.
+
+items:
+  - external_item_id: item_001
+    brand: Louis Vuitton
+    category: handbag
+    material: monogram_canvas
+    model: null  # optional: Speedy 30, Neverfull MM, etc.
+    production_year: null  # optional
+    authenticity_status: CONFIRMED_AUTHENTIC  # or CONFIRMED_COUNTERFEIT
+    label_confidence: high  # high | medium | low
+    provenance_type: lab_curated  # synthetic | expert_review | receipt_verified | partner_supplied | lab_curated
+    notes: |
+      How was this item authenticated? Receipt, expert opinion, brand partner?
+    images:
+      - region_code: EXTERIOR_CANVAS
+        file: item_001/exterior_canvas_01.png
+      - region_code: EXTERIOR_CANVAS
+        file: item_001/exterior_canvas_02.png
+      - region_code: EXTERIOR_CANVAS
+        file: item_001/exterior_canvas_03.png
+      - region_code: FRONT_LOGO_PRINT
+        file: item_001/front_logo_01.png
+      - region_code: FRONT_LOGO_PRINT
+        file: item_001/front_logo_02.png
+      - region_code: INTERIOR_HEAT_STAMP
+        file: item_001/interior_stamp_01.png
+      - region_code: INTERIOR_HEAT_STAMP
+        file: item_001/interior_stamp_02.png
+      - region_code: HARDWARE_ENGRAVING
+        file: item_001/hardware_01.png
+      - region_code: HARDWARE_ENGRAVING
+        file: item_001/hardware_02.png
+      - region_code: STITCHING_DETAIL
+        file: item_001/stitching_01.png
+      - region_code: STITCHING_DETAIL
+        file: item_001/stitching_02.png
+      - region_code: STITCHING_DETAIL
+        file: item_001/stitching_03.png
+
+  # Add more items below. Copy the block above and change item_id and paths.

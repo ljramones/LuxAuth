@@ -36,10 +36,14 @@ htmlcov/
 # Docker
 docker-compose.override.yml
 
-# Environment
+# Environment / secrets
 .env
 .env.local
 .env.*.local
+*.pem
+*.key
+*.p12
+*.keystore
 
 # Data / volumes
 pgdata/
@@ -48,8 +52,24 @@ localstack-data/
 # Logs
 *.log
 
-# ML artifacts
+# ML artifacts (large binary files)
 *.onnx
 *.pt
 *.pth
 *.h5
+*.safetensors
+
+# iOS
+apps/ios/build/
+apps/ios/DerivedData/
+apps/ios/*.xcworkspace/xcuserdata/
+apps/ios/Pods/
+
+# Android
+apps/android/.gradle/
+apps/android/build/
+apps/android/local.properties
+apps/android/app/build/
+
+# Reports (regenerable)
+reports/

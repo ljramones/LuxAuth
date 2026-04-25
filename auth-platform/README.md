@@ -114,11 +114,49 @@ Tracing is planned via OpenTelemetry instrumentation of each FastAPI service, wi
 - SQLAlchemy queries
 - S3/SQS client calls
 
+## When the Microscope Arrives
+
+When a real microscope becomes available, follow the acceptance workflow:
+
+1. **[Microscope Acceptance Runbook](../docs/operations/microscope-acceptance-runbook.md)** — step-by-step from device registration through evaluation diagnostics
+2. **[First Real Capture Checklist](../docs/operations/first-real-capture-checklist.md)** — quick reference checklist
+3. **[Capture Quality Guide](../docs/operations/capture-quality-guide.md)** — how to get better microscope images
+
+### Quick Start
+
+```bash
+# Generate a manifest template from the active protocol
+python3 scripts/create_capture_manifest_template.py \
+  --batch-code lab_first_real_batch_001 \
+  --device-code YOUR_DEVICE_SERIAL \
+  --output sample_data/lab_captures/lab_first_real_batch_001/manifest.yaml
+
+# Then: capture images, edit manifest, and run:
+make validate-capture-batch BATCH=lab_first_real_batch_001
+make ingest-capture-batch BATCH=lab_first_real_batch_001
+make promote-capture-batch BATCH=lab_first_real_batch_001 DATASET=lab_first_real_v0.1.0
+make run-evaluation
+make evaluation-report
+```
+
+### Data Categories
+
+| Category | Prefix | Purpose | Example |
+|---|---|---|---|
+| Smoke test data | `smoke_*` | Pipeline validation, auto-cleaned | `smoke_lab_lv_monogram_batch_001` |
+| Synthetic data | `synthetic_*` | Baseline evaluation | `synthetic_lv_monogram_v0.1.0` |
+| Real lab data | `lab_*` | Real microscope captures | `lab_first_real_batch_001` |
+| Production data | (no prefix) | Future production use | — |
+
+Smoke and synthetic data can be regenerated freely. Real lab data is protected by
+a safety guard — destructive operations require `--force` for non-smoke batches.
+
 ## Next Steps
 
 - Replace stub ML models with real embedding and scoring models
 - Integrate SageMaker for GPU inference when model lifecycle stabilizes
-- Build mobile capture app (iOS/Android)
 - Build review UI for human-in-the-loop authentication
 - Add OpenTelemetry instrumentation
 - Production deployment via Terraform/CDK
+
+Mobile capture clients live in `iphone-app/` and `android-app/` at the repo root.
