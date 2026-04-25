@@ -1,12 +1,11 @@
+from auth_common.database import get_db
+from auth_common.logging import get_logger
 from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from auth_common.database import get_db
-from auth_common.logging import get_logger
-
-from app.settings import settings
 from app.handlers import make_decision
+from app.settings import settings
 
 logger = get_logger(settings.service_name)
 router = APIRouter()

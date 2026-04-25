@@ -67,6 +67,16 @@ async def handle_message(envelope: EventEnvelope) -> None:
         except Exception as exc:
             await db.rollback()
             async with factory() as err_db:
-                await record_processing_failed(err_db, idem_key, str(exc))
+                await record_processing_failed(
+                    err_db,
+                    idem_key,
+                    str(exc),
+                    correlation_id=envelope.correlation_id,
+                    scan_session_id=envelope.scan_session_id,
+                    image_id=image_id,
+                    stage="EMBEDDING",
+                    source_service=settings.service_name,
+                    event_id=envelope.event_id,
+                )
                 await err_db.commit()
             raise

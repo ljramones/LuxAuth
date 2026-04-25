@@ -2,8 +2,8 @@
 """Re-embed reference images using a specified embedding model.
 
 Usage:
-  python scripts/reembed_reference_dataset.py --model learned_metric_v0.1.0
-  python scripts/reembed_reference_dataset.py --model texture_baseline_v0.1.0
+  python scripts/reembed_reference_dataset.py --dataset synthetic_lv_monogram_v0.1.0 --model texture_baseline_v0.1.0 --dry-run
+  python scripts/reembed_reference_dataset.py --dataset synthetic_lv_monogram_v0.1.0 --model learned_metric_v0.1.0 --force
 """
 
 import argparse
@@ -11,11 +11,10 @@ import io
 import json
 import sys
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import boto3
-import numpy as np
 import psycopg2
 import torch
 
@@ -42,7 +41,7 @@ def embed_texture_baseline(img_bytes: bytes) -> list[float]:
     imaging = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(imaging)
 
-    from auth_common.imaging import normalize_image, compute_texture_embedding
+    from auth_common.imaging import compute_texture_embedding, normalize_image
     norm = normalize_image(img_bytes)
     return compute_texture_embedding(norm, dim=EMBEDDING_DIM)
 
@@ -88,7 +87,9 @@ def load_learned_model(model_version: str, s3) -> torch.nn.Module:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", required=True, help="e.g., learned_metric_v0.1.0 or texture_baseline_v0.1.0")
-    parser.add_argument("--dataset", default="synthetic_lv_monogram_v0.1.0")
+    parser.add_argument("--dataset", required=True, help="Dataset version to re-embed")
+    parser.add_argument("--dry-run", action="store_true", help="Print planned changes without writing")
+    parser.add_argument("--force", action="store_true", help="Allow replacing existing embeddings for this dataset/model")
     args = parser.parse_args()
 
     conn = psycopg2.connect(DB_DSN)
@@ -125,13 +126,48 @@ def main():
     """, (args.dataset,))
     all_rows = cur.fetchall()
     print(f"Total images (search + eval): {len(all_rows)}")
+    if not all_rows:
+        print(f"No reference images found for dataset: {args.dataset}")
+        sys.exit(1)
 
-    # Delete existing embeddings for this model version
-    cur.execute("DELETE FROM reference_embeddings WHERE embedding_model_version = %s", (args.model,))
-    print(f"Cleared old embeddings for {args.model}")
+    reference_image_ids = [str(row[0]) for row in all_rows]
+    cur.execute(
+        """
+        SELECT count(*)
+        FROM reference_embeddings
+        WHERE embedding_model_version = %s AND reference_image_id = ANY(%s::uuid[])
+        """,
+        (args.model, reference_image_ids),
+    )
+    existing_count = cur.fetchone()[0]
+    print("Replacement plan:")
+    print(f"  dataset: {args.dataset}")
+    print(f"  model:   {args.model}")
+    print(f"  reference images to embed: {len(reference_image_ids)}")
+    print(f"  existing embeddings to delete: {existing_count}")
+
+    if args.dry_run:
+        print("Dry run only. No embeddings deleted or inserted.")
+        cur.close()
+        conn.close()
+        return
+
+    if existing_count and not args.force:
+        print("ERROR: Existing embeddings found. Re-run with --force to replace them.")
+        sys.exit(1)
+
+    if existing_count:
+        cur.execute(
+            """
+            DELETE FROM reference_embeddings
+            WHERE embedding_model_version = %s AND reference_image_id = ANY(%s::uuid[])
+            """,
+            (args.model, reference_image_ids),
+        )
+        print(f"Cleared {existing_count} old embeddings for {args.model} in {args.dataset}")
 
     embedded = 0
-    for ref_image_id, object_uri, region_code in all_rows:
+    for ref_image_id, object_uri, _region_code in all_rows:
         # Download image
         parts = object_uri.replace("s3://", "").split("/", 1)
         try:
@@ -160,7 +196,7 @@ def main():
         VALUES (%s, 'REFERENCE_REEMBEDDING_COMPLETED', %s, %s)
     """, (str(uuid.uuid4()),
           json.dumps({"model": args.model, "dataset": args.dataset, "count": embedded}),
-          datetime.now(timezone.utc)))
+          datetime.now(UTC)))
 
     print(f"\nEmbedded {embedded} reference images with {args.model}")
     cur.close()

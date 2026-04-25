@@ -1,13 +1,12 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
+from auth_common.database import get_db
+from auth_common.logging import get_logger
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from auth_common.database import get_db
-from auth_common.logging import get_logger
 
 from app.settings import settings
 
@@ -61,7 +60,7 @@ async def get_review_case(review_case_id: str, db: AsyncSession = Depends(get_db
 @router.post("/review-cases")
 async def create_review_case(body: CreateReviewCaseRequest, db: AsyncSession = Depends(get_db)):
     review_case_id = str(uuid.uuid4())
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     await db.execute(
         text(
@@ -101,7 +100,7 @@ async def submit_review_decision(
     db: AsyncSession = Depends(get_db),
 ):
     # TODO: audit trail for reviewer actions
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     result = await db.execute(
         text("SELECT id FROM review_cases WHERE id = :id"),

@@ -10,8 +10,6 @@ Creates deterministic texture images that simulate:
 These are NOT real product images. They are synthetic textures for pipeline testing only.
 """
 
-import os
-import sys
 from pathlib import Path
 
 import numpy as np

@@ -81,8 +81,10 @@ Capture Client
   ▼
 capture-intake-service (8106)
   │ validates protocol, region codes, images
+  │ creates canonical image_assets records with source_type=CAPTURE_SESSION
+  │ links capture_session_images.image_asset_id → image_assets.id
   │ stores in S3
-  │ publishes IMAGE_UPLOADED to image-quality-queue
+  │ publishes IMAGE_UPLOADED with image_id=image_assets.id to image-quality-queue
   ▼
 (same pipeline as authentication scan flow from image-quality-service onward)
 ```

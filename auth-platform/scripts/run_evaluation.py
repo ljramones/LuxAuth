@@ -13,17 +13,18 @@ Usage: python scripts/run_evaluation.py [--dataset synthetic_lv_monogram_v0.1.0]
 """
 
 import argparse
-import json
-import sys
-import uuid
-from datetime import datetime, timezone
-from pathlib import Path
-
-import psycopg2
-import numpy as np
 
 # Import imaging module directly
 import importlib.util
+import json
+import sys
+import uuid
+from datetime import UTC, datetime
+from pathlib import Path
+
+import numpy as np
+import psycopg2
+
 _imaging_path = str(Path(__file__).parent.parent / "libs" / "auth_common" / "auth_common" / "imaging.py")
 _spec = importlib.util.spec_from_file_location("imaging", _imaging_path)
 _imaging = importlib.util.module_from_spec(_spec)
@@ -86,7 +87,7 @@ def main():
     if not profile_row:
         print(f"Threshold profile not found: {args.profile}")
         sys.exit(1)
-    profile = dict(zip(profile_cols, profile_row))
+    profile = dict(zip(profile_cols, profile_row, strict=True))
     print(f"Profile: {profile['profile_name']}:{profile['profile_version']}")
     print(f"Thresholds: strong={profile['strong_match_threshold']}, mismatch={profile['mismatch_threshold']}")
 
@@ -107,7 +108,7 @@ def main():
         ORDER BY ri.region_code, rit.authenticity_status
     """, (str(ds_id), embedding_model))
     test_cols = [desc[0] for desc in cur.description]
-    test_rows = [dict(zip(test_cols, r)) for r in cur.fetchall()]
+    test_rows = [dict(zip(test_cols, r, strict=True)) for r in cur.fetchall()]
     print(f"Test items: {len(test_rows)}")
 
     if not test_rows:
@@ -126,13 +127,13 @@ def main():
         ORDER BY ri.region_code
     """, (str(ds_id), embedding_model))
     search_cols = [desc[0] for desc in cur.description]
-    search_rows = [dict(zip(search_cols, r)) for r in cur.fetchall()]
+    search_rows = [dict(zip(search_cols, r, strict=True)) for r in cur.fetchall()]
     print(f"Search references: {len(search_rows)}")
 
     # Create evaluation run
     eval_id = str(uuid.uuid4())
-    eval_name = f"eval_{args.dataset}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
-    now = datetime.now(timezone.utc)
+    eval_name = f"eval_{args.dataset}_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+    now = datetime.now(UTC)
 
     cur.execute("""
         INSERT INTO evaluation_runs (id, evaluation_name, reference_dataset_version,
@@ -257,7 +258,7 @@ def main():
     cur.execute("""
         UPDATE evaluation_runs SET status = 'COMPLETED', completed_at = %s, summary_json = %s
         WHERE id = %s
-    """, (datetime.now(timezone.utc), json.dumps(summary), eval_id))
+    """, (datetime.now(UTC), json.dumps(summary), eval_id))
 
     # Record audit event
     cur.execute("""

@@ -1,9 +1,9 @@
 """Image transforms for training and inference."""
 
 import io
-import numpy as np
-from PIL import Image
+
 import torch
+from PIL import Image
 from torchvision import transforms
 
 

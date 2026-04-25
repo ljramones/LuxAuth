@@ -6,9 +6,6 @@ try:
 except ImportError:
     torch = None  # type: ignore
 
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from auth_common.audit import record_audit_event
 from auth_common.correlation import get_correlation_id
 from auth_common.events import EventEnvelope, EventTypes
@@ -17,6 +14,8 @@ from auth_common.logging import get_logger
 from auth_common.messaging import send_message
 from auth_common.models import EmbeddingRecord
 from auth_common.s3 import download_file
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.settings import settings
 
@@ -36,10 +35,9 @@ def _get_learned_model():
         # Import model class
         import sys
         sys.path.insert(0, "/app/ml")
-        from metric_learning.model import EmbeddingModel
-
         # Find artifact in DB — use sync psycopg2 for simplicity
         import psycopg2
+        from metric_learning.model import EmbeddingModel
         conn = psycopg2.connect(
             f"postgresql://authplatform:authplatform@{settings.database_url.split('@')[1].split('/')[0]}/authplatform"
         )

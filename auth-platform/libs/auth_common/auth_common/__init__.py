@@ -12,8 +12,8 @@ from auth_common.idempotency import (
     record_processing_failed,
     record_processing_start,
 )
+from auth_common.imaging import compute_quality_metrics, compute_texture_embedding, normalize_image, validate_image
 from auth_common.logging import get_logger
-from auth_common.regions import RegionCodes
 from auth_common.models import (
     AuditEvent,
     AuthenticationDecision,
@@ -32,7 +32,7 @@ from auth_common.models import (
     ScanSessionResponse,
     VectorSearchResult,
 )
-from auth_common.imaging import validate_image, compute_quality_metrics, normalize_image, compute_texture_embedding
+from auth_common.regions import RegionCodes
 from auth_common.worker import run_worker
 
 __all__ = [

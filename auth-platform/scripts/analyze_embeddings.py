@@ -6,6 +6,7 @@ Usage: python scripts/analyze_embeddings.py --model texture_baseline_v0.1.0 [--d
 
 import argparse
 import sys
+
 import numpy as np
 import psycopg2
 
@@ -68,11 +69,10 @@ def main():
     embeddings = [parse_vec(r[0]) for r in rows]
     labels = [r[1] for r in rows]
     regions = [r[2] for r in rows]
-    splits = [r[3] for r in rows]
     emb_matrix = np.array(embeddings)
 
-    auth_idx = [i for i, l in enumerate(labels) if "AUTHENTIC" in l]
-    counter_idx = [i for i, l in enumerate(labels) if "COUNTERFEIT" in l]
+    auth_idx = [i for i, label in enumerate(labels) if "AUTHENTIC" in label]
+    counter_idx = [i for i, label in enumerate(labels) if "COUNTERFEIT" in label]
 
     norms = np.linalg.norm(emb_matrix, axis=1)
 
@@ -90,7 +90,7 @@ def main():
     print(f"  Authentic: {len(auth_idx)}")
     print(f"  Counterfeit: {len(counter_idx)}")
 
-    print(f"\n  Vector norms:")
+    print("\n  Vector norms:")
     print(f"    Mean: {norms.mean():.4f}")
     print(f"    Min:  {norms.min():.4f}")
     print(f"    Max:  {norms.max():.4f}")
@@ -112,7 +112,7 @@ def main():
                 else:
                     ac_sims.append(sim)
 
-        print(f"\n  Pairwise cosine similarity:")
+        print("\n  Pairwise cosine similarity:")
         print(f"    All pairs:             mean={np.mean(all_sims):.4f}, min={np.min(all_sims):.4f}, max={np.max(all_sims):.4f}")
         if aa_sims:
             print(f"    Authentic-Authentic:   mean={np.mean(aa_sims):.4f} (n={len(aa_sims)})")
@@ -126,7 +126,7 @@ def main():
             intra = (np.mean(aa_sims) + np.mean(cc_sims)) / 2
             inter = np.mean(ac_sims)
             separation = intra - inter
-            print(f"\n  Cluster separation:")
+            print("\n  Cluster separation:")
             print(f"    Intra-class mean:  {intra:.4f}")
             print(f"    Inter-class mean:  {inter:.4f}")
             print(f"    Separation score:  {separation:.4f} (positive = good)")
@@ -150,7 +150,7 @@ def main():
     # Region breakdown
     unique_regions = sorted(set(regions))
     if len(unique_regions) > 1:
-        print(f"\n  By region:")
+        print("\n  By region:")
         for region in unique_regions:
             r_idx = [i for i, r in enumerate(regions) if r == region]
             r_auth = sum(1 for i in r_idx if "AUTHENTIC" in labels[i])

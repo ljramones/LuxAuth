@@ -1,12 +1,7 @@
 import hashlib
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.settings import settings
 from auth_common.audit import record_audit_event
 from auth_common.correlation import get_correlation_id
 from auth_common.database import get_db
@@ -16,6 +11,11 @@ from auth_common.logging import get_logger
 from auth_common.messaging import send_message
 from auth_common.models import ImageAssetResponse
 from auth_common.s3 import upload_file
+from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.settings import settings
 
 logger = get_logger(settings.service_name)
 
@@ -81,7 +81,7 @@ async def upload_image(
         )
 
     image_id = uuid.uuid4()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Read file content
     content = await file.read()

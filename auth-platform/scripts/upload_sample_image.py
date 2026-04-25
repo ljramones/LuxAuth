@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Upload a sample (fake) image to the evidence-asset-service."""
 
-import httpx
 import json
 import os
 import sys
+
+import httpx
 
 EVIDENCE_ASSET_URL = "http://localhost:8104/scan-sessions"
 DEVICE_ID = "c0000000-0000-0000-0000-000000000001"

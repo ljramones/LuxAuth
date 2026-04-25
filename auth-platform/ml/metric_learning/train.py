@@ -2,16 +2,16 @@
 
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import psycopg2
 import torch
 from torch.utils.data import DataLoader
 
 from metric_learning.config import TrainingConfig
-from metric_learning.dataset import ReferenceImageDataset, ContrastivePairDataset
-from metric_learning.model import EmbeddingModel
+from metric_learning.dataset import ContrastivePairDataset, ReferenceImageDataset
 from metric_learning.losses import ContrastiveLoss
+from metric_learning.model import EmbeddingModel
 
 
 def train(config: TrainingConfig) -> dict:
@@ -46,7 +46,7 @@ def train(config: TrainingConfig) -> dict:
     cur = conn.cursor()
 
     run_id = str(uuid.uuid4())
-    started_at = datetime.now(timezone.utc)
+    started_at = datetime.now(UTC)
 
     cur.execute("""
         INSERT INTO training_runs (id, model_name, model_version, dataset_version,
@@ -110,7 +110,7 @@ def train(config: TrainingConfig) -> dict:
 
         print(f"  Epoch {epoch+1}/{config.epochs}: train_loss={avg_train_loss:.4f}, val_loss={avg_val_loss:.4f}")
 
-    completed_at = datetime.now(timezone.utc)
+    completed_at = datetime.now(UTC)
     metrics = {
         "final_train_loss": train_losses[-1] if train_losses else None,
         "final_val_loss": val_losses[-1] if val_losses else None,

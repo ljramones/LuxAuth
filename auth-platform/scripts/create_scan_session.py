@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Create a scan session against the local scan-session-service."""
 
-import httpx
 import json
 import sys
+
+import httpx
 
 SCAN_SESSION_URL = "http://localhost:8101/scan-sessions"
 ORGANIZATION_ID = "a0000000-0000-0000-0000-000000000001"

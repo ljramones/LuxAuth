@@ -54,7 +54,7 @@ def main():
 
     cur.execute("SELECT dataset_version, status FROM reference_dataset_versions ORDER BY dataset_version")
     datasets = cur.fetchall()
-    print(f"\n  >> Dataset versions:")
+    print("\n  >> Dataset versions:")
     for ds, st in datasets:
         print(f"    {ds}: {st}")
 
@@ -70,13 +70,13 @@ def main():
     cur.execute("SELECT dataset_version, status FROM reference_dataset_versions WHERE dataset_version LIKE 'lab_%'")
     lab_rows = cur.fetchall()
     if lab_rows:
-        print(f"  >> Real lab datasets (should be untouched):")
+        print("  >> Real lab datasets (should be untouched):")
         for ds, st in lab_rows:
             print(f"    {ds}: {st}")
     results["No real lab data modified"] = True  # smoke test only touches smoke_* names
 
     # Smoke dataset should be draft
-    cur.execute(f"SELECT status FROM reference_dataset_versions WHERE dataset_version = %s", (SMOKE_DATASET,))
+    cur.execute("SELECT status FROM reference_dataset_versions WHERE dataset_version = %s", (SMOKE_DATASET,))
     smoke_ds = cur.fetchone()
     results["Smoke dataset is draft"] = smoke_ds is not None and smoke_ds[0] == "draft"
 

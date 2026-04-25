@@ -12,7 +12,9 @@ Device-agnostic capture session management service. Manages capture protocols (w
 - Track per-region image completeness (uploaded vs. required counts)
 - Manage session lifecycle: CREATED -> CAPTURING -> COMPLETE/INCOMPLETE
 - Upload raw images to S3 (auth-platform-raw-evidence bucket)
-- Publish IMAGE_UPLOADED events to the image-quality-queue (SQS)
+- Create canonical `image_assets` records for uploaded capture images
+- Link `capture_session_images.image_asset_id` to `image_assets.id`
+- Publish IMAGE_UPLOADED events to the image-quality-queue (SQS) using `image_assets.id`
 - Record audit events for all write operations
 
 ## Non-Responsibilities
@@ -218,9 +220,11 @@ This service does not consume SQS events.
 {
   "event_type": "IMAGE_UPLOADED",
   "correlation_id": "...",
-  "image_id": "uuid",
+  "image_id": "image_assets.id",
   "source_service": "capture-intake-service",
   "payload": {
+    "image_asset_id": "image_assets.id",
+    "capture_session_image_id": "capture_session_images.id",
     "capture_session_id": "uuid",
     "region_code": "EXTERIOR_CANVAS",
     "raw_object_uri": "s3://...",
@@ -239,7 +243,8 @@ If the queue is unreachable, the upload still succeeds (warning logged). The eve
 | capture_protocols | Read/Write | Protocol definitions |
 | capture_protocol_regions | Read/Write | Region requirements per protocol |
 | capture_sessions | Read/Write | Session lifecycle and status |
-| capture_session_images | Read/Write | Image metadata per session |
+| image_assets | Write | Canonical pipeline input consumed by image-quality and downstream workers |
+| capture_session_images | Read/Write | Capture metadata per session, linked to image_assets |
 
 ## S3 / Object Storage Usage
 

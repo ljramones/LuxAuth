@@ -11,20 +11,22 @@ For each image:
 7. Create reference_dataset_members row linking to dataset version
 8. Create reference_label_reviews row
 
-Usage: python scripts/ingest_reference_images.py
+Usage:
+  python scripts/ingest_reference_images.py --dataset synthetic_lv_monogram_v0.1.0 --dry-run
+  python scripts/ingest_reference_images.py --dataset synthetic_lv_monogram_v0.1.0 --force
 """
 
-import hashlib
+import argparse
+import importlib.util
 import sys
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
-import psycopg2
 import boto3
+import psycopg2
 
 # Import imaging module directly to avoid loading full auth_common package
-import importlib.util
 _imaging_path = str(Path(__file__).parent.parent / "libs" / "auth_common" / "auth_common" / "imaging.py")
 _spec = importlib.util.spec_from_file_location("imaging", _imaging_path)
 _imaging = importlib.util.module_from_spec(_spec)
@@ -39,8 +41,7 @@ EMBEDDING_MODEL = "texture_baseline_v0.1.0"
 EMBEDDING_DIM = 128
 
 REFERENCE_DIR = Path("sample_data/reference")
-
-DATASET_VERSION = "synthetic_lv_monogram_v0.1.0"
+SAFE_DESTRUCTIVE_PREFIXES = ("synthetic_", "smoke_")
 
 # Deterministic split assignment: cycle through for indices 0-4
 SPLITS = ["train", "train", "train", "validation", "test"]
@@ -60,15 +61,96 @@ def get_split_flags(split):
     """Return (include_in_search, include_in_evaluation, include_in_training) for a split."""
     if split == "train":
         return True, False, True
-    elif split == "validation":
-        return False, True, False
-    elif split == "test":
+    elif split == "validation" or split == "test":
         return False, True, False
     else:
         raise ValueError(f"Unknown split: {split}")
 
 
+def _fetch_existing_dataset(cur, dataset_version: str) -> tuple[str | None, dict[str, int], list[str], list[str]]:
+    cur.execute("SELECT id FROM reference_dataset_versions WHERE dataset_version = %s", (dataset_version,))
+    row = cur.fetchone()
+    if not row:
+        return None, {
+            "reference_label_reviews": 0,
+            "reference_dataset_members": 0,
+            "reference_embeddings": 0,
+            "reference_images": 0,
+            "reference_items": 0,
+            "reference_dataset_versions": 0,
+        }, [], []
+
+    dataset_id = str(row[0])
+    cur.execute(
+        """
+        SELECT DISTINCT ri.id, ri.reference_item_id
+        FROM reference_dataset_members rdm
+        JOIN reference_images ri ON ri.id = rdm.reference_image_id
+        WHERE rdm.dataset_version_id = %s
+        """,
+        (dataset_id,),
+    )
+    rows = cur.fetchall()
+    reference_image_ids = [str(r[0]) for r in rows]
+    reference_item_ids = sorted({str(r[1]) for r in rows})
+
+    counts = {"reference_dataset_versions": 1}
+    counts["reference_dataset_members"] = len(reference_image_ids)
+    if reference_image_ids:
+        cur.execute("SELECT count(*) FROM reference_embeddings WHERE reference_image_id = ANY(%s)", (reference_image_ids,))
+        counts["reference_embeddings"] = cur.fetchone()[0]
+        cur.execute("SELECT count(*) FROM reference_label_reviews WHERE reference_image_id = ANY(%s)", (reference_image_ids,))
+        image_review_count = cur.fetchone()[0]
+    else:
+        counts["reference_embeddings"] = 0
+        image_review_count = 0
+
+    if reference_item_ids:
+        cur.execute("SELECT count(*) FROM reference_label_reviews WHERE reference_item_id = ANY(%s)", (reference_item_ids,))
+        item_review_count = cur.fetchone()[0]
+    else:
+        item_review_count = 0
+    counts["reference_label_reviews"] = image_review_count + item_review_count
+    counts["reference_images"] = len(reference_image_ids)
+    counts["reference_items"] = len(reference_item_ids)
+    return dataset_id, counts, reference_image_ids, reference_item_ids
+
+
+def _print_delete_plan(dataset_version: str, counts: dict[str, int]) -> None:
+    print(f"Delete plan for dataset '{dataset_version}':")
+    for table in (
+        "reference_label_reviews",
+        "reference_dataset_members",
+        "reference_embeddings",
+        "reference_images",
+        "reference_items",
+        "reference_dataset_versions",
+    ):
+        print(f"  {table}: {counts.get(table, 0)} rows")
+
+
+def _delete_existing_dataset(cur, dataset_id: str, reference_image_ids: list[str], reference_item_ids: list[str]) -> None:
+    if reference_image_ids:
+        cur.execute("DELETE FROM reference_label_reviews WHERE reference_image_id = ANY(%s)", (reference_image_ids,))
+        cur.execute("DELETE FROM reference_embeddings WHERE reference_image_id = ANY(%s)", (reference_image_ids,))
+    if reference_item_ids:
+        cur.execute("DELETE FROM reference_label_reviews WHERE reference_item_id = ANY(%s)", (reference_item_ids,))
+    cur.execute("DELETE FROM reference_dataset_members WHERE dataset_version_id = %s", (dataset_id,))
+    if reference_image_ids:
+        cur.execute("DELETE FROM reference_images WHERE id = ANY(%s)", (reference_image_ids,))
+    if reference_item_ids:
+        cur.execute("DELETE FROM reference_items WHERE id = ANY(%s)", (reference_item_ids,))
+    cur.execute("DELETE FROM reference_dataset_versions WHERE id = %s", (dataset_id,))
+
+
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dataset", required=True, help="Dataset version to create, e.g. synthetic_lv_monogram_v0.1.0")
+    parser.add_argument("--dry-run", action="store_true", help="Print planned changes without writing")
+    parser.add_argument("--force", action="store_true", help="Allow replacement when the dataset already exists")
+    parser.add_argument("--force-real-data", action="store_true", help="Allow destructive replacement of non-smoke/non-synthetic datasets")
+    args = parser.parse_args()
+
     if not REFERENCE_DIR.exists():
         print(f"Reference directory not found: {REFERENCE_DIR}")
         print("Run: python scripts/generate_synthetic_reference_images.py first")
@@ -79,24 +161,37 @@ def main():
     cur = conn.cursor()
     s3 = get_s3()
 
-    # Clear existing reference data for clean re-ingestion
-    cur.execute("DELETE FROM reference_label_reviews")
-    cur.execute("DELETE FROM reference_dataset_members")
-    cur.execute("DELETE FROM reference_dataset_versions")
-    cur.execute("DELETE FROM reference_embeddings")
-    cur.execute("DELETE FROM reference_images")
-    cur.execute("DELETE FROM reference_items WHERE source = 'synthetic_test_data'")
+    dataset_id, delete_counts, reference_image_ids, reference_item_ids = _fetch_existing_dataset(cur, args.dataset)
+    if dataset_id:
+        _print_delete_plan(args.dataset, delete_counts)
+        if not args.force:
+            print("ERROR: Dataset already exists. Re-run with --force to replace it.")
+            sys.exit(1)
+        if not args.dataset.startswith(SAFE_DESTRUCTIVE_PREFIXES) and not args.force_real_data:
+            print("ERROR: Refusing destructive cleanup for non-smoke/non-synthetic dataset without --force-real-data.")
+            sys.exit(1)
+    else:
+        print(f"No existing dataset found for '{args.dataset}'.")
+
+    if args.dry_run:
+        print("Dry run only. No rows deleted or inserted.")
+        cur.close()
+        conn.close()
+        return
+
+    if dataset_id:
+        _delete_existing_dataset(cur, dataset_id, reference_image_ids, reference_item_ids)
 
     # Create dataset version
     ds_id = str(uuid.uuid4())
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     cur.execute(
         """INSERT INTO reference_dataset_versions
            (id, dataset_version, source_type, status, created_at)
            VALUES (%s, %s, %s, %s, %s)""",
-        (ds_id, DATASET_VERSION, "synthetic", "active", now),
+        (ds_id, args.dataset, "synthetic", "active", now),
     )
-    print(f"Created dataset version: {DATASET_VERSION} ({ds_id})")
+    print(f"Created dataset version: {args.dataset} ({ds_id})")
 
     ingested = 0
 
@@ -151,7 +246,6 @@ def main():
                         for img_path in sorted(region_dir.glob("*.jpg")):
                             raw_bytes = img_path.read_bytes()
                             ref_image_id = str(uuid.uuid4())
-                            sha256 = hashlib.sha256(raw_bytes).hexdigest()
 
                             # Upload to S3
                             s3_key = f"reference/{brand}/{category}/{material}/{region_code}/{ref_image_id}.jpg"

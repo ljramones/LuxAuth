@@ -34,7 +34,7 @@ def main():
         print("No evaluation runs found.")
         sys.exit(0)
 
-    run = dict(zip(cols, row))
+    run = dict(zip(cols, row, strict=True))
     summary = run["summary_json"] if isinstance(run["summary_json"], dict) else json.loads(run["summary_json"] or "{}")
 
     print("=" * 60)
@@ -100,7 +100,7 @@ def main():
             print(f"\n{'─' * 60}")
             print(f"  TOP {title} (up to 5)")
             print(f"{'─' * 60}")
-            for ref_id, region, expected, predicted, auth_sim, counter_sim in worst:
+            for _ref_id, region, expected, predicted, auth_sim, counter_sim in worst:
                 print(f"  {region}: expected={expected}, predicted={predicted}, "
                       f"auth_sim={auth_sim:.4f}, counter_sim={counter_sim:.4f}")
 
@@ -137,7 +137,7 @@ def main():
         print(f"\n{'─' * 60}")
         print("  MOST AMBIGUOUS CASES (smallest auth/counter gap)")
         print(f"{'─' * 60}")
-        for ref_id, region, expected, predicted, auth_sim, counter_sim, diff in ambiguous:
+        for _ref_id, region, expected, predicted, auth_sim, counter_sim, diff in ambiguous:
             print(f"  {region}: expected={expected}, predicted={predicted}, "
                   f"auth={auth_sim:.4f}, counter={counter_sim:.4f}, gap={diff:.4f}")
 
@@ -153,7 +153,7 @@ def main():
         print(f"\n{'─' * 60}")
         print("  HIGHEST OOD SCORES")
         print(f"{'─' * 60}")
-        for ref_id, region, expected, predicted, ood, auth_sim, counter_sim in ood_cases:
+        for _ref_id, region, expected, predicted, ood, _auth_sim, _counter_sim in ood_cases:
             print(f"  {region}: ood={ood:.4f}, expected={expected}, predicted={predicted}")
 
     print(f"\n{'=' * 60}")

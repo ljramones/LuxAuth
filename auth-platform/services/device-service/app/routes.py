@@ -1,16 +1,16 @@
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
+from auth_common.audit import record_audit_event
+from auth_common.database import get_db
+from auth_common.logging import get_logger
+from auth_common.models import DeviceRegister, DeviceResponse
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.settings import settings
-from auth_common.audit import record_audit_event
-from auth_common.database import get_db
-from auth_common.logging import get_logger
-from auth_common.models import DeviceRegister, DeviceResponse
 
 logger = get_logger(settings.service_name)
 
@@ -33,7 +33,7 @@ async def register_device(
     db: AsyncSession = Depends(get_db),
 ):
     device_id = uuid.uuid4()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     await db.execute(
         text(
@@ -101,7 +101,7 @@ async def create_calibration(
         raise HTTPException(status_code=404, detail="Device not found")
 
     cal_id = uuid.uuid4()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     await db.execute(
         text("""
@@ -113,7 +113,7 @@ async def create_calibration(
             "device_id": device_id,
             "profile": json.dumps(body.get("calibration_profile", body)),
             "calibrated_at": now,
-            "expires_at": datetime(2027, 1, 1, tzinfo=timezone.utc),
+            "expires_at": datetime(2027, 1, 1, tzinfo=UTC),
         },
     )
 

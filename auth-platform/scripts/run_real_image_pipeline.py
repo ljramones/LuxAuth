@@ -12,7 +12,6 @@ Scenario C: Complete scan with counterfeit-like images → should return UNVERIF
 Scenario D: Bad quality image → should fail quality check
 """
 
-import os
 import sys
 import time
 from pathlib import Path
@@ -219,8 +218,7 @@ def run_scenario_d() -> bool:
         "underexposed.jpg": "UNDEREXPOSED",
     }
 
-    all_passed = True
-    for filename, expected_issue in bad_images.items():
+    for filename in bad_images:
         img_path = SAMPLE_DIR / "query" / "bad_quality" / filename
         if not img_path.exists():
             print(f"    SKIP: {filename} not found")
@@ -253,7 +251,7 @@ def run_scenario_d() -> bool:
         except Exception as exc:
             print(f"    {filename}: error checking quality — {exc}")
 
-    print(f"\n  [PASS] Bad quality detection exercised")
+    print("\n  [PASS] Bad quality detection exercised")
     return True
 
 

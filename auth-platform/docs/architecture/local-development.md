@@ -122,7 +122,8 @@ All services retain their direct HTTP `/process/{id}` endpoints for debugging. T
 
 ```bash
 make generate-synthetic-data     # Create synthetic images
-make ingest-reference-data       # Ingest with dataset version, splits, labels
+make ingest-reference-data DATASET=synthetic_lv_monogram_v0.1.0 FORCE=1
+                                 # Ingest with dataset version, splits, labels
 ```
 
 This creates dataset `synthetic_lv_monogram_v0.1.0` with:

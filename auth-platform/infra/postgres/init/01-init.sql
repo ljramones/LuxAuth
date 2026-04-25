@@ -88,7 +88,10 @@ CREATE TABLE scan_sessions (
 
 CREATE TABLE image_assets (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    scan_session_id UUID NOT NULL,
+    scan_session_id UUID,
+    source_type VARCHAR(100) NOT NULL DEFAULT 'SCAN_SESSION',
+    source_id UUID,
+    tenant_id UUID,
     region_code VARCHAR(100) NOT NULL,
     device_id UUID,
     raw_object_uri VARCHAR(1024) NOT NULL,
@@ -334,6 +337,7 @@ CREATE TABLE capture_sessions (
 CREATE TABLE capture_session_images (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     capture_session_id UUID NOT NULL REFERENCES capture_sessions(id),
+    image_asset_id UUID REFERENCES image_assets(id),
     external_item_id VARCHAR(255),
     region_code VARCHAR(100) NOT NULL,
     capture_index INT NOT NULL DEFAULT 0,
@@ -534,6 +538,8 @@ CREATE INDEX idx_scan_sessions_device_id ON scan_sessions(device_id);
 CREATE INDEX idx_scan_sessions_status ON scan_sessions(status);
 
 CREATE INDEX idx_image_assets_scan_session_id ON image_assets(scan_session_id);
+CREATE INDEX idx_image_assets_source ON image_assets(source_type, source_id);
+CREATE INDEX idx_image_assets_tenant_id ON image_assets(tenant_id);
 CREATE INDEX idx_image_assets_device_id ON image_assets(device_id);
 CREATE INDEX idx_image_assets_region_code ON image_assets(region_code);
 
@@ -593,6 +599,7 @@ CREATE INDEX idx_capture_protocol_regions_protocol ON capture_protocol_regions(c
 CREATE INDEX idx_capture_sessions_device ON capture_sessions(device_id);
 CREATE INDEX idx_capture_sessions_status ON capture_sessions(status);
 CREATE INDEX idx_capture_session_images_session ON capture_session_images(capture_session_id);
+CREATE INDEX idx_capture_session_images_asset ON capture_session_images(image_asset_id);
 CREATE INDEX idx_capture_session_images_region ON capture_session_images(region_code);
 CREATE INDEX idx_capture_session_images_item ON capture_session_images(external_item_id);
 

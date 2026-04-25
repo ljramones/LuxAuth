@@ -2,7 +2,7 @@
 
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,7 +44,7 @@ async def record_audit_event(
             "image_id": str(image_id) if image_id else None,
             "actor_id": str(actor_id) if actor_id else None,
             "payload": json.dumps(payload) if payload else None,
-            "created_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
         },
     )
     logger.info("audit_event_recorded", event_type=event_type, scan_session_id=str(scan_session_id) if scan_session_id else None)

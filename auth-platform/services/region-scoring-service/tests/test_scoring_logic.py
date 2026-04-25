@@ -1,9 +1,6 @@
 """Unit tests for region scoring decision logic."""
 
-import uuid
-from unittest.mock import AsyncMock, patch, MagicMock
 
-import pytest
 
 # The handler uses these thresholds:
 #   authentic >= 0.85 and counterfeit < 0.50 → STRONG_MATCH

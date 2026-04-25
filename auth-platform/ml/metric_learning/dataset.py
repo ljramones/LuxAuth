@@ -5,14 +5,13 @@ import random
 from typing import Any
 
 import boto3
-import numpy as np
 import psycopg2
-from PIL import Image
 import torch
+from PIL import Image
 from torch.utils.data import Dataset
 
 from metric_learning.config import TrainingConfig
-from metric_learning.transforms import get_train_transform, get_eval_transform
+from metric_learning.transforms import get_eval_transform, get_train_transform
 
 
 class ReferenceImageDataset(Dataset):
@@ -55,7 +54,7 @@ class ReferenceImageDataset(Dataset):
         """, params)
 
         cols = [desc[0] for desc in cur.description]
-        self.items = [dict(zip(cols, row)) for row in cur.fetchall()]
+        self.items = [dict(zip(cols, row, strict=True)) for row in cur.fetchall()]
         cur.close()
         conn.close()
 
@@ -95,8 +94,8 @@ class ContrastivePairDataset(Dataset):
         self.rng = random.Random(seed)
 
         # Split indices by label
-        self.pos_indices = [i for i, l in enumerate(base_dataset.labels) if l == 1]
-        self.neg_indices = [i for i, l in enumerate(base_dataset.labels) if l == 0]
+        self.pos_indices = [i for i, label in enumerate(base_dataset.labels) if label == 1]
+        self.neg_indices = [i for i, label in enumerate(base_dataset.labels) if label == 0]
 
         # Generate pairs
         self.pairs: list[tuple[int, int, int]] = []

@@ -12,20 +12,19 @@ Tests:
 """
 
 import io
-import os
 import sys
 import time
 
 import httpx
-import numpy as np
-from PIL import Image
 
 DEVICE_URL = "http://localhost:8103"
 CAPTURE_URL = "http://localhost:8106"
 QUALITY_URL = "http://localhost:8201"
+NORMALIZATION_URL = "http://localhost:8202"
 
 TIMEOUT = 15.0
 ORG_ID = "a0000000-0000-0000-0000-000000000001"
+HTTP = httpx.Client(timeout=TIMEOUT, trust_env=False)
 
 REQUIRED_REGIONS = [
     ("EXTERIOR_CANVAS", 3),
@@ -41,24 +40,69 @@ def step(label: str):
 
 
 def post(url: str, **kwargs) -> dict:
-    resp = httpx.post(url, timeout=TIMEOUT, **kwargs)
+    resp = HTTP.post(url, **kwargs)
     resp.raise_for_status()
     return resp.json()
 
 
 def get(url: str) -> dict:
-    resp = httpx.get(url, timeout=TIMEOUT)
+    resp = HTTP.get(url)
     resp.raise_for_status()
     return resp.json()
 
 
 def make_test_jpeg(seed: int = 0) -> bytes:
+    import numpy as np
+    from PIL import Image
+
     rng = np.random.RandomState(seed)
     arr = rng.randint(50, 200, (256, 256, 3), dtype=np.uint8)
     img = Image.fromarray(arr)
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=90)
     return buf.getvalue()
+
+
+def _quality_report_from_payload(payload):
+    if isinstance(payload, dict):
+        return payload
+    if isinstance(payload, list):
+        return payload[0] if payload else None
+    return None
+
+
+def wait_for_pipeline(image_asset_id: str, max_wait: float = 45.0) -> None:
+    """Verify a capture upload reaches the canonical image pipeline."""
+    step("Wait for image quality report")
+    start = time.time()
+    quality = None
+    while time.time() - start < max_wait:
+        try:
+            resp = HTTP.get(f"{QUALITY_URL}/reports/{image_asset_id}", timeout=5)
+            if resp.status_code == 200:
+                quality = _quality_report_from_payload(resp.json())
+                if quality is not None:
+                    break
+        except httpx.RequestError:
+            pass
+        time.sleep(1.0)
+    assert quality is not None, f"quality report not created for image_asset_id={image_asset_id}"
+    assert "quality_status" in quality, f"quality report missing quality_status for image_asset_id={image_asset_id}"
+    print(f"    quality_status = {quality['quality_status']}")
+
+    step("Wait for normalized image")
+    normalized = None
+    while time.time() - start < max_wait:
+        try:
+            resp = HTTP.get(f"{NORMALIZATION_URL}/results/{image_asset_id}", timeout=5)
+            if resp.status_code == 200:
+                normalized = resp.json()
+                break
+        except httpx.RequestError:
+            pass
+        time.sleep(1.0)
+    assert normalized is not None, f"normalization result not created for image_asset_id={image_asset_id}"
+    print(f"    normalized_object_uri = {normalized['normalized_object_uri']}")
 
 
 def main():
@@ -123,7 +167,9 @@ def main():
         files={"file": ("test.jpg", img_data, "image/jpeg")},
         data={"region_code": "EXTERIOR_CANVAS", "external_item_id": "item_001"},
     )
-    print(f"    image_id = {upload['id']}")
+    first_image_asset_id = upload["image_asset_id"]
+    print(f"    capture_session_image_id = {upload['id']}")
+    print(f"    image_asset_id = {first_image_asset_id}")
 
     step("Check status (should be incomplete)")
     status = get(f"{CAPTURE_URL}/capture-sessions/{session_id}/status")
@@ -152,7 +198,7 @@ def main():
                     "capture_index": i,
                 },
             )
-            print(f"    {region}[{i}] = {resp['id']}")
+            print(f"    {region}[{i}] capture_image={resp['id']} asset={resp['image_asset_id']}")
 
     # 7. Complete session
     step("Complete session (should be COMPLETE)")
@@ -161,7 +207,10 @@ def main():
     print(f"    total_images = {complete_resp['total_images']}")
     assert complete_resp["status"] == "COMPLETE", f"Expected COMPLETE, got {complete_resp['status']}"
 
-    # 8. Verify invalid region rejected
+    # 8. Verify the first capture image entered the existing image pipeline.
+    wait_for_pipeline(first_image_asset_id)
+
+    # 9. Verify invalid region rejected
     step("Upload with invalid region (should fail)")
     try:
         bad_img = make_test_jpeg(seed=999)

@@ -12,8 +12,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "ml"))
 
 from metric_learning.config import TrainingConfig
-from metric_learning.train import train
 from metric_learning.export import export_model
+from metric_learning.train import train
 
 
 def main():
@@ -60,7 +60,7 @@ def main():
     full_version = f"{config.model_name}_{config.model_version}"
     print(f"\nModel registered: {full_version}")
     print(f"Artifact: {artifact_uri}")
-    print(f"\nNext steps:")
+    print("\nNext steps:")
     print(f"  make reembed-reference-data MODEL={full_version}")
     print(f"  make run-evaluation MODEL={full_version}")
 

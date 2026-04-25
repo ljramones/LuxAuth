@@ -68,7 +68,7 @@ for external visualization. No built-in UI — use any plotting tool.
 Each training run creates a distinct model version:
 ```bash
 make train-metric-model MODEL_VERSION=learned_metric_v0.1.1
-make reembed-reference-data MODEL=learned_metric_v0.1.1
+make reembed-reference-data DATASET=synthetic_lv_monogram_v0.1.0 MODEL=learned_metric_v0.1.1
 make run-evaluation MODEL=learned_metric_v0.1.1
 make compare-evaluations
 ```

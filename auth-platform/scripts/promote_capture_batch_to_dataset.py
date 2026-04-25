@@ -6,12 +6,11 @@ Usage:
 """
 
 import argparse
-import hashlib
 import importlib.util
 import json
 import sys
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import boto3
@@ -48,7 +47,7 @@ def main():
     conn.autocommit = True
     cur = conn.cursor()
     s3 = get_s3()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Check batch
     cur.execute("SELECT id, status FROM capture_batches WHERE batch_code = %s", (args.batch,))
@@ -105,7 +104,7 @@ def main():
     leakage_warnings = []
     promoted = 0
 
-    for img_id, ref_image_id, sha256, region_code, _, ext_item_id, norm_uri in batch_images:
+    for _img_id, ref_image_id, sha256, _region_code, _, ext_item_id, norm_uri in batch_images:
         if not ref_image_id:
             continue
 

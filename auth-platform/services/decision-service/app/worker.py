@@ -2,8 +2,6 @@
 
 from uuid import UUID
 
-from sqlalchemy import text
-
 from auth_common.database import get_engine, get_session_factory
 from auth_common.events import EventEnvelope
 from auth_common.idempotency import (
@@ -14,8 +12,9 @@ from auth_common.idempotency import (
     record_processing_start,
 )
 from auth_common.logging import get_logger
+from sqlalchemy import text
 
-from app.handlers import make_decision, DECISION_RULE_VERSION
+from app.handlers import DECISION_RULE_VERSION, make_decision
 from app.settings import settings
 
 logger = get_logger(settings.service_name)
@@ -105,6 +104,15 @@ async def handle_message(envelope: EventEnvelope) -> None:
         except Exception as exc:
             await db.rollback()
             async with factory() as err_db:
-                await record_processing_failed(err_db, idem_key, str(exc))
+                await record_processing_failed(
+                    err_db,
+                    idem_key,
+                    str(exc),
+                    correlation_id=envelope.correlation_id,
+                    scan_session_id=scan_session_id,
+                    stage="DECISION",
+                    source_service=settings.service_name,
+                    event_id=envelope.event_id,
+                )
                 await err_db.commit()
             raise

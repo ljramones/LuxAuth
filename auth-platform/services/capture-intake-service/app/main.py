@@ -1,9 +1,11 @@
 import sys
+
 sys.path.insert(0, "/app/libs/auth_common")
 
-from fastapi import FastAPI
 from auth_common.correlation import CorrelationMiddleware
 from auth_common.logging import get_logger
+from fastapi import FastAPI
+
 from app.routes import router
 from app.settings import settings
 

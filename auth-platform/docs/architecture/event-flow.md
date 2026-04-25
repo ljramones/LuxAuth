@@ -41,7 +41,7 @@ authentication_decisions table
 
 | Event Type | Producer | Consumer Queue | Consumer Service |
 |---|---|---|---|
-| IMAGE_UPLOADED | evidence-asset-service | image-quality-queue | image-quality-service |
+| IMAGE_UPLOADED | evidence-asset-service / capture-intake-service | image-quality-queue | image-quality-service |
 | IMAGE_QUALITY_COMPLETED | image-quality-service | normalization-queue | normalization-service |
 | IMAGE_NORMALIZED | normalization-service | embedding-queue | embedding-service |
 | EMBEDDING_GENERATED | embedding-service | vector-search-queue | vector-search-service |
@@ -87,7 +87,7 @@ Duplicate messages are detected via the `processing_runs` table and safely skipp
 
 ## Dead Letter Queue
 
-All processing queues are configured with a redrive policy pointing to `dead-letter-queue` after 3 failed receives. Failed processing also records a `PROCESSING_FAILED` audit event.
+All processing queues are configured with a redrive policy pointing to `dead-letter-queue` after 3 failed receives. Worker-stage failures update `processing_runs` and record a `PROCESSING_FAILED` audit event with the stage, source service, error message, event ID, correlation ID, and any available scan session or image ID.
 
 ## Correlation IDs
 

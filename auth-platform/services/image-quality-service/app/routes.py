@@ -3,11 +3,10 @@ from uuid import UUID
 
 sys.path.insert(0, "/app/libs/auth_common")
 
-from fastapi import APIRouter, Depends
+from auth_common.database import get_db
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from auth_common.database import get_db
 
 from app.handlers import process_image_quality
 
@@ -36,14 +35,16 @@ async def get_report(image_asset_id: UUID, db: AsyncSession = Depends(get_db)):
         text(
             """
             SELECT image_asset_id, sharpness_score, exposure_score,
-                   glare_score, quality_status, issues
+                   glare_score, quality_status, issues, created_at
             FROM image_quality_reports
             WHERE image_asset_id = :id
+            ORDER BY created_at DESC
+            LIMIT 1
             """
         ),
         {"id": str(image_asset_id)},
     )
     row = result.mappings().one_or_none()
     if row is None:
-        return {"detail": "report not found"}, 404
+        raise HTTPException(status_code=404, detail="report not found")
     return dict(row)

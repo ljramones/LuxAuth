@@ -7,7 +7,7 @@ Usage: python scripts/inspect_neighbors.py --model texture_baseline_v0.1.0 [--k 
 import argparse
 import json
 import os
-import sys
+
 import numpy as np
 import psycopg2
 

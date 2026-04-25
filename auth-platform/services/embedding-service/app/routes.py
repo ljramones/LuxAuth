@@ -3,11 +3,10 @@ from uuid import UUID
 
 sys.path.insert(0, "/app/libs/auth_common")
 
+from auth_common.database import get_db
 from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from auth_common.database import get_db
 
 from app.handlers import generate_embedding
 

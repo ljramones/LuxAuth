@@ -5,12 +5,11 @@ Usage: python scripts/validate_capture_batch.py --batch lab_lv_monogram_batch_00
 """
 
 import argparse
-import hashlib
 import importlib.util
 import json
 import sys
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import psycopg2
@@ -38,9 +37,7 @@ def _is_safe_to_cleanup(batch_code: str, force: bool) -> bool:
     """Only allow destructive cleanup for smoke/synthetic batches unless --force."""
     if any(batch_code.startswith(p) for p in SAFE_PREFIXES):
         return True
-    if force:
-        return True
-    return False
+    return bool(force)
 
 
 def main():
@@ -66,7 +63,7 @@ def main():
 
     errors = []
     warnings = []
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     batch_code = manifest.get("batch_code")
     if not batch_code:
@@ -255,11 +252,11 @@ def main():
     print(f"  Quality fails: {quality_fails}")
 
     if errors:
-        print(f"\n  ERRORS:")
+        print("\n  ERRORS:")
         for e in errors:
             print(f"    - {e}")
     if warnings:
-        print(f"\n  WARNINGS:")
+        print("\n  WARNINGS:")
         for w in warnings:
             print(f"    - {w}")
 

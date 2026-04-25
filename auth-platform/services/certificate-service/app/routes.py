@@ -1,14 +1,13 @@
 import uuid
-from datetime import datetime, timezone
-
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import UTC, datetime
 
 from auth_common.database import get_db
 from auth_common.logging import get_logger
 from auth_common.models import CertificateResponse
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.settings import settings
 
@@ -47,7 +46,7 @@ async def create_certificate(body: CreateCertificateRequest, db: AsyncSession = 
 
     certificate_id = str(uuid.uuid4())
     certificate_number = f"CERT-{uuid.uuid4().hex[:8].upper()}"
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     await db.execute(
         text(

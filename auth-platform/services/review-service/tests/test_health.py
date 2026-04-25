@@ -1,7 +1,8 @@
 import sys
+
 sys.path.insert(0, "/app/libs/auth_common")
-from fastapi.testclient import TestClient
 from app.main import app
+from fastapi.testclient import TestClient
 
 client = TestClient(app)
 

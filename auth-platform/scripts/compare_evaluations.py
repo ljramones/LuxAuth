@@ -7,6 +7,7 @@ Usage: python scripts/compare_evaluations.py
 import argparse
 import json
 import sys
+
 import psycopg2
 
 DB_DSN = "postgresql://authplatform:authplatform@localhost:5432/authplatform"
@@ -41,7 +42,7 @@ def main():
             ORDER BY embedding_model_version, started_at DESC
         """)
     cols = [desc[0] for desc in cur.description]
-    runs = [dict(zip(cols, row)) for row in cur.fetchall()]
+    runs = [dict(zip(cols, row, strict=True)) for row in cur.fetchall()]
 
     if not runs:
         print("No completed evaluation runs found.")

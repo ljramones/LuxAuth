@@ -42,8 +42,10 @@ Capture Client (app/desktop/Pi)
   ▼
 capture-intake-service (port 8106)
   │ validates protocol, region, image
+  │ writes image_assets as the canonical pipeline input
+  │ links capture_session_images.image_asset_id to image_assets.id
   │ stores in S3
-  │ publishes to image-quality-queue
+  │ publishes to image-quality-queue with image_id=image_assets.id
   ▼
 existing pipeline: quality → norm → embed → search → score → decision
 ```

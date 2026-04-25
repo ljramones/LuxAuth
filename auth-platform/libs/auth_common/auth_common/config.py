@@ -2,7 +2,6 @@
 
 from pydantic_settings import BaseSettings
 
-
 # S3 bucket name constants
 S3_BUCKET_RAW_EVIDENCE = "auth-platform-raw-evidence"
 S3_BUCKET_NORMALIZED_EVIDENCE = "auth-platform-normalized-evidence"

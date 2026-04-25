@@ -1,14 +1,11 @@
 """Unit tests for shared Pydantic models."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-from pydantic import ValidationError
-
 from auth_common.models import (
     AuthenticationDecision,
-    ImageQualityReport,
     RegionScore,
     ScanRecipeRegion,
     ScanRecipeResponse,
@@ -16,6 +13,7 @@ from auth_common.models import (
     ScanSessionResponse,
     VectorSearchResult,
 )
+from pydantic import ValidationError
 
 
 class TestScanSessionCreate:
@@ -58,7 +56,7 @@ class TestScanSessionResponse:
             claimed_brand="Louis Vuitton",
             claimed_category="handbag",
             claimed_material="monogram_canvas",
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
         assert m.required_regions == []
         assert m.scan_recipe_id is None
@@ -72,7 +70,7 @@ class TestScanSessionResponse:
             claimed_material="monogram_canvas",
             required_regions=["EXTERIOR_CANVAS", "FRONT_LOGO_PRINT"],
             scan_recipe_id=uuid.uuid4(),
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
         assert len(m.required_regions) == 2
 

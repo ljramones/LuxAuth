@@ -1,14 +1,13 @@
 import json
 import uuid
-from datetime import datetime, timezone
-
-from fastapi import HTTPException
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import UTC, datetime
 
 from auth_common.audit import record_audit_event
 from auth_common.logging import get_logger
 from auth_common.models import AuthenticationDecision
+from fastapi import HTTPException
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.settings import settings
 
@@ -137,7 +136,7 @@ async def make_decision(
     ]
 
     decision_id = str(uuid.uuid4())
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Insert into authentication_decisions table
     await db_session.execute(

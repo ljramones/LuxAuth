@@ -16,7 +16,7 @@ make ingest-capture-batch BATCH=lab_lv_monogram_batch_001
 make promote-capture-batch BATCH=lab_lv_monogram_batch_001 DATASET=lab_lv_monogram_v0.1.0
 
 # Embed references and evaluate
-make reembed-reference-data MODEL=texture_baseline_v0.1.0
+make reembed-reference-data DATASET=lab_lv_monogram_v0.1.0 MODEL=texture_baseline_v0.1.0
 make run-evaluation
 ```
 

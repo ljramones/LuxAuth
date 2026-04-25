@@ -1,14 +1,7 @@
 import hashlib
-import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
-from pydantic import BaseModel
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.settings import settings
 from auth_common.audit import record_audit_event
 from auth_common.correlation import get_correlation_id
 from auth_common.database import get_db
@@ -17,6 +10,12 @@ from auth_common.imaging import validate_image
 from auth_common.logging import get_logger
 from auth_common.messaging import send_message
 from auth_common.s3 import upload_file
+from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
+from pydantic import BaseModel
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.settings import settings
 
 logger = get_logger(settings.service_name)
 router = APIRouter()
@@ -30,6 +29,23 @@ async def health():
 @router.get("/ready")
 async def ready():
     return {"status": "ready"}
+
+
+async def _ensure_capture_pipeline_schema(db: AsyncSession) -> None:
+    """Apply the small bridge schema needed by existing local databases.
+
+    Fresh databases get these columns from infra/postgres/init/01-init.sql.
+    This keeps already-running local volumes compatible after a rebuild.
+    """
+    await db.execute(text("ALTER TABLE image_assets ALTER COLUMN scan_session_id DROP NOT NULL"))
+    await db.execute(
+        text("ALTER TABLE image_assets ADD COLUMN IF NOT EXISTS source_type VARCHAR(100) NOT NULL DEFAULT 'SCAN_SESSION'")
+    )
+    await db.execute(text("ALTER TABLE image_assets ADD COLUMN IF NOT EXISTS source_id UUID"))
+    await db.execute(text("ALTER TABLE image_assets ADD COLUMN IF NOT EXISTS tenant_id UUID"))
+    await db.execute(
+        text("ALTER TABLE capture_session_images ADD COLUMN IF NOT EXISTS image_asset_id UUID REFERENCES image_assets(id)")
+    )
 
 
 # ── Capture Protocols ───────────────────────────────────────────────
@@ -68,7 +84,7 @@ class CreateProtocol(BaseModel):
 @router.post("/capture-protocols", status_code=201)
 async def create_protocol(body: CreateProtocol, db: AsyncSession = Depends(get_db)):
     pid = uuid.uuid4()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     await db.execute(
         text("""INSERT INTO capture_protocols (id, protocol_code, protocol_version, brand, category, material, description, created_at, updated_at)
                 VALUES (:id, :code, :version, :brand, :cat, :mat, :desc, :now, :now)"""),
@@ -110,7 +126,7 @@ async def create_capture_session(body: CreateCaptureSession, db: AsyncSession = 
         raise HTTPException(status_code=400, detail=f"Protocol not found: {body.capture_protocol_code}")
 
     sid = uuid.uuid4()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     await db.execute(
         text("""INSERT INTO capture_sessions (id, device_id, calibration_id, capture_protocol_id,
                 source_type, operator, status, notes, created_at, updated_at)
@@ -198,6 +214,8 @@ async def upload_capture_image(
     notes: str = Form(default=None),
     db: AsyncSession = Depends(get_db),
 ):
+    await _ensure_capture_pipeline_schema(db)
+
     # Validate session
     session = await db.execute(
         text("SELECT id, capture_protocol_id, device_id FROM capture_sessions WHERE id = :id"),
@@ -222,32 +240,64 @@ async def upload_capture_image(
     if not validation.get("valid", False):
         raise HTTPException(status_code=400, detail={"error": "Invalid image", "issues": validation.get("issues", [])})
 
-    image_id = uuid.uuid4()
-    now = datetime.now(timezone.utc)
+    image_asset_id = uuid.uuid4()
+    capture_session_image_id = uuid.uuid4()
+    now = datetime.now(UTC)
     ext = (validation.get("image_format") or "bin").lower()
     if ext == "jpeg":
         ext = "jpg"
 
     # Upload to S3
-    s3_key = f"captures/{capture_session_id}/items/{external_item_id}/raw/{image_id}.{ext}"
+    s3_key = f"captures/{capture_session_id}/items/{external_item_id}/raw/{image_asset_id}.{ext}"
     raw_uri = upload_file(settings.raw_evidence_bucket, s3_key, content,
                           content_type=file.content_type or "application/octet-stream")
 
-    # Store metadata
+    checksum_md5 = hashlib.md5(content).hexdigest()  # noqa: S324
+
+    # Store canonical pipeline input. Downstream workers consume image_assets only.
+    await db.execute(
+        text("""INSERT INTO image_assets
+                (id, scan_session_id, source_type, source_id, tenant_id,
+                 region_code, device_id, raw_object_uri, checksum, file_size_bytes,
+                 content_type, width, height, image_format, color_mode,
+                 sha256_checksum, created_at)
+                VALUES (:id, NULL, 'CAPTURE_SESSION', :source_id, NULL,
+                        :rc, :did, :uri, :checksum, :size,
+                        :ct, :w, :h, :fmt, :mode, :sha, :now)"""),
+        {
+            "id": image_asset_id,
+            "source_id": capture_session_id,
+            "rc": region_code,
+            "did": sess["device_id"],
+            "uri": raw_uri,
+            "checksum": checksum_md5,
+            "size": validation.get("file_size_bytes"),
+            "ct": file.content_type or "application/octet-stream",
+            "w": validation.get("width"),
+            "h": validation.get("height"),
+            "fmt": validation.get("image_format"),
+            "mode": validation.get("color_mode"),
+            "sha": validation.get("sha256_checksum"),
+            "now": now,
+        },
+    )
+
+    # Store capture-specific metadata and link it to the canonical image asset.
     await db.execute(
         text("""INSERT INTO capture_session_images
-                (id, capture_session_id, external_item_id, region_code, capture_index,
+                (id, capture_session_id, image_asset_id, external_item_id, region_code, capture_index,
                  device_id, raw_object_uri, file_size_bytes, content_type,
                  width, height, image_format, sha256_checksum,
                  magnification_profile, lighting_profile, calibration_profile,
                  authenticity_status, label_confidence, provenance_type, notes, created_at)
-                VALUES (:id, :sid, :eid, :rc, :ci,
+                VALUES (:id, :sid, :image_asset_id, :eid, :rc, :ci,
                         :did, :uri, :size, :ct,
                         :w, :h, :fmt, :sha,
                         :mag, :light, :cal,
                         :auth, :lconf, :prov, :notes, :now)"""),
         {
-            "id": image_id, "sid": capture_session_id, "eid": external_item_id,
+            "id": capture_session_image_id, "sid": capture_session_id,
+            "image_asset_id": image_asset_id, "eid": external_item_id,
             "rc": region_code, "ci": capture_index,
             "did": sess["device_id"], "uri": raw_uri,
             "size": validation.get("file_size_bytes"), "ct": file.content_type,
@@ -269,9 +319,11 @@ async def upload_capture_image(
     envelope = EventEnvelope(
         event_type=EventTypes.IMAGE_UPLOADED,
         correlation_id=get_correlation_id(),
-        image_id=image_id,
+        image_id=image_asset_id,
         source_service=settings.service_name,
         payload={
+            "image_asset_id": str(image_asset_id),
+            "capture_session_image_id": str(capture_session_image_id),
             "capture_session_id": str(capture_session_id),
             "region_code": region_code,
             "raw_object_uri": raw_uri,
@@ -282,16 +334,21 @@ async def upload_capture_image(
     try:
         send_message(settings.image_quality_queue, envelope)
     except Exception:
-        logger.warning("queue_publish_failed", image_id=str(image_id))
+        logger.warning("queue_publish_failed", image_id=str(image_asset_id))
 
     await record_audit_event(
         db, "CAPTURE_SESSION_IMAGE_UPLOADED",
-        image_id=image_id,
-        payload={"capture_session_id": str(capture_session_id), "region_code": region_code},
+        image_id=image_asset_id,
+        payload={
+            "capture_session_id": str(capture_session_id),
+            "capture_session_image_id": str(capture_session_image_id),
+            "region_code": region_code,
+        },
     )
 
     return {
-        "id": str(image_id),
+        "id": str(capture_session_image_id),
+        "image_asset_id": str(image_asset_id),
         "capture_session_id": str(capture_session_id),
         "region_code": region_code,
         "raw_object_uri": raw_uri,
@@ -314,7 +371,7 @@ async def complete_capture_session(capture_session_id: uuid.UUID, db: AsyncSessi
         new_status = "INCOMPLETE"
         event = "CAPTURE_SESSION_INCOMPLETE"
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     await db.execute(
         text("UPDATE capture_sessions SET status = :status, updated_at = :now WHERE id = :id"),
         {"status": new_status, "id": str(capture_session_id), "now": now},

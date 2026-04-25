@@ -1,13 +1,13 @@
 import uuid
 
+from auth_common.database import get_db
+from auth_common.logging import get_logger
+from auth_common.models import ScanRecipeRegion, ScanRecipeResponse
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.settings import settings
-from auth_common.database import get_db
-from auth_common.logging import get_logger
-from auth_common.models import ScanRecipeRegion, ScanRecipeResponse
 
 logger = get_logger(settings.service_name)
 

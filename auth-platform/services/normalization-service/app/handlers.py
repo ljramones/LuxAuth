@@ -1,8 +1,5 @@
 from uuid import UUID, uuid4
 
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from auth_common.audit import record_audit_event
 from auth_common.correlation import get_correlation_id
 from auth_common.events import EventEnvelope, EventTypes
@@ -11,6 +8,9 @@ from auth_common.logging import get_logger
 from auth_common.messaging import send_message
 from auth_common.models import NormalizationResult
 from auth_common.s3 import download_file, upload_file
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.settings import settings
 
@@ -19,16 +19,44 @@ logger = get_logger(settings.service_name)
 PREPROCESSING_VERSION = "normalize_image_v0.1.0"
 
 
+async def _get_image_asset(image_asset_id: UUID, db_session: AsyncSession):
+    """Read image asset metadata, tolerating older local DB volumes before schema refresh."""
+    try:
+        row = await db_session.execute(
+            text(
+                """
+                SELECT scan_session_id, raw_object_uri, source_type, source_id
+                FROM image_assets
+                WHERE id = :id
+                """
+            ),
+            {"id": str(image_asset_id)},
+        )
+        return row.mappings().one_or_none()
+    except SQLAlchemyError:
+        await db_session.rollback()
+        row = await db_session.execute(
+            text("SELECT scan_session_id, raw_object_uri FROM image_assets WHERE id = :id"),
+            {"id": str(image_asset_id)},
+        )
+        return row.mappings().one_or_none()
+
+
+def _normalized_key_prefix(image_asset_id: UUID, asset) -> str:
+    if asset["scan_session_id"] is not None:
+        return str(asset["scan_session_id"])
+
+    source_type = asset.get("source_type") or "UNSCOPED"
+    source_id = asset.get("source_id") or image_asset_id
+    return f"{source_type.lower()}/{source_id}"
+
+
 async def normalize_image(
     image_asset_id: UUID, db_session: AsyncSession
 ) -> NormalizationResult:
     """Download raw image, normalize to 512x512 RGB PNG, upload result."""
 
-    row = await db_session.execute(
-        text("SELECT scan_session_id, raw_object_uri FROM image_assets WHERE id = :id"),
-        {"id": str(image_asset_id)},
-    )
-    asset = row.mappings().one_or_none()
+    asset = await _get_image_asset(image_asset_id, db_session)
     if asset is None:
         raise ValueError(f"image_asset_id {image_asset_id} not found")
 
@@ -43,7 +71,7 @@ async def normalize_image(
     normalized_bytes = do_normalize(raw_bytes, target_size=512)
 
     # Upload normalized PNG
-    normalized_key = f"{scan_session_id}/{image_asset_id}_normalized.png"
+    normalized_key = f"{_normalized_key_prefix(image_asset_id, asset)}/{image_asset_id}_normalized.png"
     normalized_uri = upload_file(
         settings.s3_normalized_bucket,
         normalized_key,
@@ -87,7 +115,7 @@ async def normalize_image(
         source_service=settings.service_name,
         payload={
             "image_asset_id": str(image_asset_id),
-            "scan_session_id": str(scan_session_id),
+            "scan_session_id": str(scan_session_id) if scan_session_id is not None else None,
             "normalized_object_uri": normalized_uri,
         },
     )

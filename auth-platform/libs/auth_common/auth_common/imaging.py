@@ -8,7 +8,12 @@ import math
 from typing import Any
 
 import numpy as np
-from PIL import Image, ExifTags
+
+try:
+    from PIL import ExifTags, Image
+except ImportError:  # pragma: no cover - exercised only in incomplete local dev environments
+    ExifTags = None  # type: ignore[assignment]
+    Image = None  # type: ignore[assignment]
 
 SUPPORTED_FORMATS = {"JPEG", "PNG", "TIFF", "BMP"}
 MIN_DIMENSION = 64  # minimum width or height
@@ -26,6 +31,14 @@ def validate_image(data: bytes) -> dict[str, Any]:
             "valid": False,
             "issues": ["EMPTY_FILE"],
             "file_size_bytes": 0,
+        }
+
+    if Image is None:
+        return {
+            "valid": False,
+            "issues": ["PILLOW_NOT_INSTALLED"],
+            "file_size_bytes": len(data),
+            "sha256_checksum": hashlib.sha256(data).hexdigest(),
         }
 
     sha256 = hashlib.sha256(data).hexdigest()
@@ -155,6 +168,9 @@ def normalize_image(data: bytes, target_size: int = 512) -> bytes:
 
     Returns PNG bytes.
     """
+    if Image is None:
+        raise RuntimeError("Pillow is required to normalize images")
+
     img = Image.open(io.BytesIO(data))
 
     # Apply EXIF orientation

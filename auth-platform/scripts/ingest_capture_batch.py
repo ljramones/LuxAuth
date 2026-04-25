@@ -5,12 +5,11 @@ Usage: python scripts/ingest_capture_batch.py --batch lab_lv_monogram_batch_001
 """
 
 import argparse
-import hashlib
 import importlib.util
 import json
 import sys
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import boto3
@@ -43,7 +42,7 @@ def main():
     conn.autocommit = True
     cur = conn.cursor()
     s3 = get_s3()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Check batch status
     cur.execute("SELECT id, status, batch_code FROM capture_batches WHERE batch_code = %s", (args.batch,))
@@ -83,7 +82,7 @@ def main():
         cur.execute("SELECT id, region_code, source_file_path, sha256_checksum, status FROM capture_batch_images WHERE capture_batch_item_id = %s AND status = 'VALIDATED'", (str(item_id),))
         images = cur.fetchall()
 
-        for img_id, region_code, source_path, sha256, img_status in images:
+        for img_id, region_code, source_path, _sha256, _img_status in images:
             source = Path(source_path)
             if not source.exists():
                 print(f"  SKIP: file missing {source}")

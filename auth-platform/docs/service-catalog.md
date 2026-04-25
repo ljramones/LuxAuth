@@ -10,7 +10,7 @@ One-page reference for all backend microservices.
 | scan-recipe-service | 8102 | Operational | Serve scan recipe definitions | — | — | scan_recipes, scan_recipe_regions | Read-only; recipes seeded via SQL |
 | device-service | 8103 | Operational | Device registration + calibration | — | — | devices, device_calibrations | |
 | evidence-asset-service | 8104 | Evidence | Raw image intake for scan sessions | — | image-quality-queue | image_assets, scan_sessions | Validates images, stores in S3 |
-| capture-intake-service | 8106 | Capture | Device-agnostic capture sessions | — | image-quality-queue | capture_protocols, capture_sessions, capture_session_images | Protocol-driven region completeness |
+| capture-intake-service | 8106 | Capture | Device-agnostic capture sessions | — | image-quality-queue | capture_protocols, capture_sessions, capture_session_images, image_assets | Creates canonical image_assets rows for live captures |
 | image-quality-service | 8201 | Pipeline | Image quality assessment (OpenCV) | image-quality-queue | normalization-queue | image_quality_reports | Sharpness, exposure, glare |
 | normalization-service | 8202 | Pipeline | 512x512 RGB PNG normalization | normalization-queue | embedding-queue | normalized_images | EXIF fix, center-crop, resize |
 | embedding-service | 8203 | Pipeline | Vector embedding generation | embedding-queue | vector-search-queue | embeddings, model_versions | Supports texture_baseline + learned_metric |
@@ -54,6 +54,7 @@ evidence-asset-service / capture-intake-service
 | CAPTURE_SESSION_IMAGE_UPLOADED | capture-intake-service |
 | CAPTURE_SESSION_COMPLETED | capture-intake-service |
 | CAPTURE_SESSION_INCOMPLETE | capture-intake-service |
+| PROCESSING_FAILED | pipeline workers |
 | IMAGE_QUALITY_COMPLETED | image-quality-service |
 | IMAGE_NORMALIZED | normalization-service |
 | EMBEDDING_GENERATED | embedding-service |

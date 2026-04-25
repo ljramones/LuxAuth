@@ -12,6 +12,14 @@ dependencies = [
     "pydantic-settings>=2.6.0",
     "boto3>=1.35.0",
     "httpx>=0.28.0",
+    "python-multipart>=0.0.9",
+    "structlog>=24.0,<25.0",
+    "pgvector>=0.3,<1.0",
+    "Pillow>=10.0,<12.0",
+    "numpy>=1.26,<3.0",
+    "opencv-python-headless>=4.8,<5.0",
+    "PyYAML>=6.0,<7.0",
+    "psycopg2-binary>=2.9,<3.0",
 ]
 
 [project.optional-dependencies]
@@ -29,6 +37,10 @@ src = ["services", "libs"]
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "A", "SIM"]
 ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"services/*/app/routes.py" = ["B008"]
+"ml/metric_learning/{losses,model}.py" = ["N812"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["libs"]

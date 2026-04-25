@@ -1,9 +1,6 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
-
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_common.audit import record_audit_event
 from auth_common.correlation import get_correlation_id
@@ -11,6 +8,8 @@ from auth_common.events import EventEnvelope, EventTypes
 from auth_common.logging import get_logger
 from auth_common.messaging import send_message
 from auth_common.models import RegionScore
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.settings import settings
 
@@ -41,7 +40,7 @@ async def score_region(
         region_decision = "INCONCLUSIVE"
 
     region_score_id = str(uuid.uuid4())
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Insert into region_scores table
     await db_session.execute(

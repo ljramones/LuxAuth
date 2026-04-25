@@ -120,7 +120,7 @@ Review the split assignment and leakage check output.
 ## Step 9: Re-Embed with Baseline
 
 ```bash
-make reembed-reference-data MODEL=texture_baseline_v0.1.0
+make reembed-reference-data DATASET=lab_first_real_v0.1.0 MODEL=texture_baseline_v0.1.0
 ```
 
 ## Step 10: Evaluate

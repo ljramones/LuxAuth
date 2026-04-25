@@ -5,10 +5,7 @@ Usage: python scripts/calibrate_thresholds.py --model texture_baseline_v0.1.0 [-
 """
 
 import argparse
-import json
-import sys
 import uuid
-from datetime import datetime, timezone
 from itertools import product
 
 import numpy as np

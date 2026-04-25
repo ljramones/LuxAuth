@@ -8,7 +8,6 @@ Scenario C: Idempotency — duplicate processing is safe
 """
 
 import io
-import os
 import sys
 import time
 

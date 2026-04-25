@@ -1,15 +1,14 @@
 import hashlib
 from uuid import UUID
 
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from auth_common.audit import record_audit_event
 from auth_common.correlation import get_correlation_id
 from auth_common.events import EventEnvelope, EventTypes
 from auth_common.logging import get_logger
 from auth_common.messaging import send_message
 from auth_common.models import VectorSearchResult
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.settings import settings
 
@@ -102,9 +101,8 @@ async def search_similar(
         if r["authenticity_status"] == "CONFIRMED_AUTHENTIC":
             if len(authentic_matches) < settings.top_k:
                 authentic_matches.append(entry)
-        elif r["authenticity_status"] == "CONFIRMED_COUNTERFEIT":
-            if len(counterfeit_matches) < settings.top_k:
-                counterfeit_matches.append(entry)
+        elif r["authenticity_status"] == "CONFIRMED_COUNTERFEIT" and len(counterfeit_matches) < settings.top_k:
+            counterfeit_matches.append(entry)
 
     # Compute cluster scores
     auth_score = (

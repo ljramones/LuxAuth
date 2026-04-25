@@ -3,7 +3,7 @@
 ## Completed
 
 ### Phase 1-3: Backend Scaffold + Event Pipeline
-- 12 FastAPI microservices in Docker Compose
+- 13 FastAPI microservices in Docker Compose
 - PostgreSQL + pgvector, LocalStack S3/SQS
 - Queue-driven evidence pipeline with idempotency and correlation IDs
 - Scan recipe resolution, canonical region codes, evidence upload validation

@@ -1,4 +1,8 @@
-.PHONY: up down logs ps init test lint format smoke clean health generate-synthetic-data ingest-reference-data smoke-real-images reset-local-data seed-dataset-version run-evaluation evaluation-report train-metric-model reembed-reference-data compare-evaluations analyze-embeddings inspect-neighbors calibrate-thresholds export-projection smoke-capture-api generate-lab-capture-batch validate-capture-batch ingest-capture-batch promote-capture-batch smoke-capture-batch
+PYTHON ?= python3
+TEST_PYTHON := $(shell if [ -x .venv/bin/python ]; then echo .venv/bin/python; else command -v $(PYTHON); fi)
+RUFF := $(shell if [ -x .venv/bin/ruff ]; then echo .venv/bin/ruff; else command -v ruff; fi)
+
+.PHONY: up down logs ps init test test-unit test-integration lint lint-fix lint-full format smoke clean health generate-synthetic-data ingest-reference-data smoke-real-images reset-local-data seed-dataset-version run-evaluation evaluation-report train-metric-model reembed-reference-data compare-evaluations analyze-embeddings inspect-neighbors calibrate-thresholds export-projection smoke-capture-api generate-lab-capture-batch validate-capture-batch ingest-capture-batch promote-capture-batch smoke-capture-batch
 
 up:
 	docker compose up --build -d
@@ -16,16 +20,29 @@ init:
 	docker compose up -d postgres localstack && sleep 5 && echo "Infrastructure ready"
 
 test:
-	pytest
+	$(MAKE) test-unit
+
+test-unit:
+	$(TEST_PYTHON) scripts/run_unit_tests.py
+
+test-integration:
+	$(MAKE) smoke
+	$(MAKE) smoke-capture-api
 
 lint:
-	ruff check .
+	$(RUFF) check .
+
+lint-fix:
+	$(RUFF) check . --fix
+
+lint-full:
+	$(RUFF) check .
 
 format:
-	ruff format .
+	$(RUFF) format .
 
 smoke:
-	python3 scripts/run_local_pipeline.py
+	$(PYTHON) scripts/run_local_pipeline.py
 
 health:
 	@for port in 8101 8102 8103 8104 8106 8201 8202 8203 8204 8205 8301 8302 8303; do \
@@ -34,10 +51,11 @@ health:
 	done
 
 generate-synthetic-data:
-	python3 scripts/generate_synthetic_reference_images.py
+	$(PYTHON) scripts/generate_synthetic_reference_images.py
 
 ingest-reference-data:
-	python3 scripts/ingest_reference_images.py
+	@test -n "$(DATASET)" || (echo "DATASET=<dataset_version> is required"; exit 2)
+	$(PYTHON) scripts/ingest_reference_images.py --dataset $(DATASET) $(if $(DRY_RUN),--dry-run) $(if $(FORCE),--force) $(if $(FORCE_REAL_DATA),--force-real-data)
 
 smoke-real-images:
 	python3 scripts/run_real_image_pipeline.py
@@ -46,7 +64,8 @@ reset-local-data:
 	docker compose down -v && docker compose up -d && sleep 10 && echo "Stack reset complete"
 
 seed-dataset-version:
-	python3 scripts/ingest_reference_images.py
+	@test -n "$(DATASET)" || (echo "DATASET=<dataset_version> is required"; exit 2)
+	$(PYTHON) scripts/ingest_reference_images.py --dataset $(DATASET) $(if $(DRY_RUN),--dry-run) $(if $(FORCE),--force) $(if $(FORCE_REAL_DATA),--force-real-data)
 
 run-evaluation:
 	python3 scripts/run_evaluation.py $(if $(MODEL),--model $(MODEL))
@@ -58,7 +77,9 @@ train-metric-model:
 	python3 scripts/train_model.py $(if $(MODEL_VERSION),--model-version $(MODEL_VERSION))
 
 reembed-reference-data:
-	python3 scripts/reembed_reference_dataset.py --model $(or $(MODEL),texture_baseline_v0.1.0)
+	@test -n "$(DATASET)" || (echo "DATASET=<dataset_version> is required"; exit 2)
+	@test -n "$(MODEL)" || (echo "MODEL=<embedding_model_version> is required"; exit 2)
+	$(PYTHON) scripts/reembed_reference_dataset.py --dataset $(DATASET) --model $(MODEL) $(if $(DRY_RUN),--dry-run) $(if $(FORCE),--force)
 
 compare-evaluations:
 	python3 scripts/compare_evaluations.py $(if $(MODELS),--models $(MODELS))
@@ -76,7 +97,7 @@ export-projection:
 	python3 scripts/export_embedding_projection.py --model $(or $(MODEL),texture_baseline_v0.1.0)
 
 smoke-capture-api:
-	python3 scripts/smoke_capture_api.py
+	$(PYTHON) scripts/smoke_capture_api.py
 
 generate-lab-capture-batch:
 	python3 scripts/generate_lab_capture_batch.py

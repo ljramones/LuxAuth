@@ -7,8 +7,6 @@ Creates sample_data/lab_captures/smoke_lab_lv_monogram_batch_001/ with:
 - 1 intentionally incomplete item (missing regions) for validation testing
 """
 
-import os
-import sys
 from pathlib import Path
 
 import numpy as np

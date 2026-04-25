@@ -1,17 +1,16 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
+from auth_common.audit import record_audit_event
+from auth_common.database import get_db
+from auth_common.logging import get_logger
+from auth_common.models import ScanSessionCreate, ScanSessionResponse
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.settings import settings
-from auth_common.audit import record_audit_event
-from auth_common.correlation import get_correlation_id
-from auth_common.database import get_db
-from auth_common.logging import get_logger
-from auth_common.models import ScanSessionCreate, ScanSessionResponse
 
 logger = get_logger(settings.service_name)
 
@@ -61,7 +60,7 @@ async def create_scan_session(
     db: AsyncSession = Depends(get_db),
 ):
     session_id = uuid.uuid4()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     recipe = await _resolve_recipe(
         body.claimed_brand, body.claimed_category, body.claimed_material

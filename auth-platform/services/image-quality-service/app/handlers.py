@@ -1,9 +1,6 @@
 import json
 from uuid import UUID
 
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from auth_common.audit import record_audit_event
 from auth_common.correlation import get_correlation_id
 from auth_common.events import EventEnvelope, EventTypes
@@ -12,6 +9,8 @@ from auth_common.logging import get_logger
 from auth_common.messaging import send_message
 from auth_common.models import ImageQualityReport
 from auth_common.s3 import download_file
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.settings import settings
 

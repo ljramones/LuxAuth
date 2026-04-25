@@ -3,7 +3,7 @@
 import io
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import boto3
 import psycopg2
@@ -96,7 +96,7 @@ def export_model(model: torch.nn.Module, train_result: dict, config: TrainingCon
         VALUES (%s, 'MODEL_VERSION_REGISTERED', %s, %s)
     """, (str(uuid.uuid4()),
           json.dumps({"model_name": config.model_name, "model_version": full_version, "artifact_uri": artifact_uri}),
-          datetime.now(timezone.utc)))
+          datetime.now(UTC)))
 
     cur.close()
     conn.close()

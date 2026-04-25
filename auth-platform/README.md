@@ -4,7 +4,7 @@ An AI-assisted authentication platform that compares microscopic manufacturing s
 
 ## Architecture Overview
 
-The platform is composed of **12 Python/FastAPI microservices** organized into four domains. Data is persisted in **PostgreSQL with pgvector** for embedding similarity search. Object storage (images) and async messaging use **LocalStack** (S3 + SQS) locally, mapping directly to AWS services in production. Everything runs in **Docker Compose** for local development.
+The platform is composed of **13 Python/FastAPI microservices** organized into four domains. Data is persisted in **PostgreSQL with pgvector** for embedding similarity search. Object storage (images) and async messaging use **LocalStack** (S3 + SQS) locally, mapping directly to AWS services in production. Everything runs in **Docker Compose** for local development.
 
 ### Why SageMaker Is Deferred
 
@@ -18,6 +18,7 @@ Model lifecycle is not yet stable, throughput requirements are unknown, and the 
 | scan-recipe-service | 8102 | Operational | Defines which regions/angles to capture per product type |
 | device-service | 8103 | Operational | Registers and manages capture devices |
 | evidence-asset-service | 8104 | Evidence | Receives uploaded images, stores in S3 |
+| capture-intake-service | 8106 | Capture | Device-agnostic capture sessions and live image intake |
 | image-quality-service | 8201 | Evidence | Assesses image sharpness, lighting, blur |
 | normalization-service | 8202 | Evidence | Crops, resizes, color-corrects images |
 | embedding-service | 8203 | ML | Generates vector embeddings from normalized images |
@@ -66,8 +67,10 @@ make smoke              # run the end-to-end smoke test
 | `make logs` | Tail logs from all containers |
 | `make ps` | Show container status |
 | `make init` | Start only postgres + localstack |
-| `make test` | Run pytest |
-| `make lint` | Run ruff check |
+| `make test` | Run repo-local unit tests with per-service import paths |
+| `make lint` | Run strict Ruff checks through the repo-local venv when present |
+| `make lint-fix` | Run safe Ruff auto-fixes through the repo-local venv when present |
+| `make lint-full` | Compatibility alias for strict Ruff checks |
 | `make format` | Run ruff format |
 | `make smoke` | Run end-to-end smoke test pipeline |
 | `make clean` | Stop containers, remove volumes and images |

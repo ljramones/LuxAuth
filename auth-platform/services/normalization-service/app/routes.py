@@ -3,11 +3,10 @@ from uuid import UUID
 
 sys.path.insert(0, "/app/libs/auth_common")
 
+from auth_common.database import get_db
 from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from auth_common.database import get_db
 
 from app.handlers import normalize_image
 
@@ -35,7 +34,7 @@ async def get_result(image_asset_id: UUID, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         text(
             """
-            SELECT image_asset_id, s3_key, preprocessing_version
+            SELECT image_asset_id, normalized_object_uri, preprocessing_version
             FROM normalized_images
             WHERE image_asset_id = :id
             """

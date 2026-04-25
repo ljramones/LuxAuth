@@ -6,7 +6,6 @@ from typing import Any
 
 import boto3
 
-
 _s3_client: Any | None = None
 
 
