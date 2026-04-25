@@ -290,6 +290,73 @@ CREATE TABLE ml_experiment_runs (
 );
 
 -- =====================================================================
+-- Capture Intake
+-- =====================================================================
+
+CREATE TABLE capture_protocols (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    protocol_code VARCHAR(255) NOT NULL UNIQUE,
+    protocol_version VARCHAR(50) NOT NULL DEFAULT 'v0.1.0',
+    brand VARCHAR(255),
+    category VARCHAR(255),
+    material VARCHAR(255),
+    description TEXT,
+    status VARCHAR(50) NOT NULL DEFAULT 'active',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE capture_protocol_regions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    capture_protocol_id UUID NOT NULL REFERENCES capture_protocols(id),
+    region_code VARCHAR(100) NOT NULL,
+    display_name VARCHAR(255),
+    min_images INT NOT NULL DEFAULT 1,
+    magnification_profile VARCHAR(100),
+    lighting_profile VARCHAR(100),
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE capture_sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    device_id UUID REFERENCES devices(id),
+    calibration_id UUID REFERENCES device_calibrations(id),
+    capture_protocol_id UUID REFERENCES capture_protocols(id),
+    source_type VARCHAR(100) NOT NULL DEFAULT 'api',
+    operator VARCHAR(255),
+    status VARCHAR(50) NOT NULL DEFAULT 'CREATED',
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE capture_session_images (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    capture_session_id UUID NOT NULL REFERENCES capture_sessions(id),
+    external_item_id VARCHAR(255),
+    region_code VARCHAR(100) NOT NULL,
+    capture_index INT NOT NULL DEFAULT 0,
+    device_id UUID REFERENCES devices(id),
+    raw_object_uri VARCHAR(1024) NOT NULL,
+    file_size_bytes BIGINT,
+    content_type VARCHAR(100),
+    width INT,
+    height INT,
+    image_format VARCHAR(20),
+    sha256_checksum VARCHAR(64),
+    magnification_profile VARCHAR(100),
+    lighting_profile VARCHAR(100),
+    calibration_profile VARCHAR(255),
+    authenticity_status VARCHAR(50),
+    label_confidence VARCHAR(50),
+    provenance_type VARCHAR(100),
+    notes TEXT,
+    quality_status VARCHAR(50),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- =====================================================================
 -- Dataset Governance
 -- =====================================================================
 
@@ -456,6 +523,14 @@ CREATE INDEX idx_ml_experiments_name ON ml_experiments(experiment_name);
 CREATE INDEX idx_ml_experiment_runs_experiment ON ml_experiment_runs(experiment_id);
 CREATE INDEX idx_ml_experiment_runs_model ON ml_experiment_runs(model_name, model_version);
 
+CREATE INDEX idx_capture_protocols_code ON capture_protocols(protocol_code);
+CREATE INDEX idx_capture_protocol_regions_protocol ON capture_protocol_regions(capture_protocol_id);
+CREATE INDEX idx_capture_sessions_device ON capture_sessions(device_id);
+CREATE INDEX idx_capture_sessions_status ON capture_sessions(status);
+CREATE INDEX idx_capture_session_images_session ON capture_session_images(capture_session_id);
+CREATE INDEX idx_capture_session_images_region ON capture_session_images(region_code);
+CREATE INDEX idx_capture_session_images_item ON capture_session_images(external_item_id);
+
 -- =====================================================================
 -- Seed Data
 -- =====================================================================
@@ -520,6 +595,23 @@ INSERT INTO reference_images (id, reference_item_id, region_code, device_profile
     ('10000000-0000-0000-0000-000000000005', 'f0000000-0000-0000-0000-000000000003',
      'STITCHING_EDGE', 'HANDHELD_MICROSCOPE_v2', 'DIRECTIONAL',
      's3://auth-platform-reference-library/lv/counterfeit/speedy30/stitching_edge_001.png', 'PASS');
+
+-- Default capture protocol
+INSERT INTO capture_protocols (id, protocol_code, protocol_version, brand, category, material, description) VALUES
+    ('40000000-0000-0000-0000-000000000001', 'lv_monogram_canvas_handbag_capture', 'v0.1.0',
+     'Louis Vuitton', 'handbag', 'monogram_canvas', 'Default capture protocol for LV monogram canvas handbags');
+
+INSERT INTO capture_protocol_regions (id, capture_protocol_id, region_code, display_name, min_images, magnification_profile, lighting_profile, sort_order) VALUES
+    ('41000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001',
+     'EXTERIOR_CANVAS', 'Exterior Canvas Pattern', 3, '10x', 'DIFFUSE', 1),
+    ('41000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000001',
+     'FRONT_LOGO_PRINT', 'Front Logo Print', 2, '20x', 'DIFFUSE', 2),
+    ('41000000-0000-0000-0000-000000000003', '40000000-0000-0000-0000-000000000001',
+     'INTERIOR_HEAT_STAMP', 'Interior Heat Stamp', 2, '20x', 'RAKING', 3),
+    ('41000000-0000-0000-0000-000000000004', '40000000-0000-0000-0000-000000000001',
+     'HARDWARE_ENGRAVING', 'Hardware Engraving', 2, '30x', 'ANGLED', 4),
+    ('41000000-0000-0000-0000-000000000005', '40000000-0000-0000-0000-000000000001',
+     'STITCHING_DETAIL', 'Stitching Detail', 3, '20x', 'DIRECTIONAL', 5);
 
 -- Reference Embeddings table
 CREATE TABLE reference_embeddings (

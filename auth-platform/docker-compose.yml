@@ -126,6 +126,19 @@ services:
       SERVICE_NAME: evidence-asset-service
       SERVICE_PORT: "8104"
 
+  capture-intake-service:
+    <<: *service-common
+    build:
+      context: .
+      dockerfile: services/capture-intake-service/Dockerfile
+    container_name: auth-platform-capture-intake-service
+    ports:
+      - "8106:8106"
+    environment:
+      <<: *service-env
+      SERVICE_NAME: capture-intake-service
+      SERVICE_PORT: "8106"
+
   # ─── Analysis Layer (82xx) ─────────────────────────────────────────
   image-quality-service:
     <<: *service-common

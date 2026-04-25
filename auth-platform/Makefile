@@ -1,4 +1,4 @@
-.PHONY: up down logs ps init test lint format smoke clean health generate-synthetic-data ingest-reference-data smoke-real-images reset-local-data seed-dataset-version run-evaluation evaluation-report train-metric-model reembed-reference-data compare-evaluations analyze-embeddings inspect-neighbors calibrate-thresholds export-projection
+.PHONY: up down logs ps init test lint format smoke clean health generate-synthetic-data ingest-reference-data smoke-real-images reset-local-data seed-dataset-version run-evaluation evaluation-report train-metric-model reembed-reference-data compare-evaluations analyze-embeddings inspect-neighbors calibrate-thresholds export-projection smoke-capture-api
 
 up:
 	docker compose up --build -d
@@ -28,7 +28,7 @@ smoke:
 	python3 scripts/run_local_pipeline.py
 
 health:
-	@for port in 8101 8102 8103 8104 8201 8202 8203 8204 8205 8301 8302 8303; do \
+	@for port in 8101 8102 8103 8104 8106 8201 8202 8203 8204 8205 8301 8302 8303; do \
 		printf "%-5s " "$$port"; \
 		curl -sf "http://localhost:$$port/health" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('service','?'), '-', d.get('status','?'))" 2>/dev/null || echo "DOWN"; \
 	done
@@ -74,6 +74,9 @@ calibrate-thresholds:
 
 export-projection:
 	python3 scripts/export_embedding_projection.py --model $(or $(MODEL),texture_baseline_v0.1.0)
+
+smoke-capture-api:
+	python3 scripts/smoke_capture_api.py
 
 clean:
 	docker compose down -v --rmi local
