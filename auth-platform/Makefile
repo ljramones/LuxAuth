@@ -2,7 +2,7 @@ PYTHON ?= python3
 TEST_PYTHON := $(shell if [ -x .venv/bin/python ]; then echo .venv/bin/python; else command -v $(PYTHON); fi)
 RUFF := $(shell if [ -x .venv/bin/ruff ]; then echo .venv/bin/ruff; else command -v ruff; fi)
 
-.PHONY: up down logs ps init test test-unit test-integration lint lint-fix lint-full format smoke clean health generate-synthetic-data ingest-reference-data smoke-real-images reset-local-data seed-dataset-version run-evaluation evaluation-report train-metric-model reembed-reference-data compare-evaluations analyze-embeddings inspect-neighbors calibrate-thresholds export-projection smoke-capture-api generate-lab-capture-batch validate-capture-batch ingest-capture-batch promote-capture-batch smoke-capture-batch
+.PHONY: up down logs ps init test test-unit test-integration lint lint-fix lint-full format smoke clean health generate-synthetic-data ingest-reference-data smoke-real-images reset-local-data seed-dataset-version run-evaluation evaluation-report train-metric-model reembed-reference-data compare-evaluations analyze-embeddings inspect-neighbors calibrate-thresholds export-projection smoke-capture-api generate-lab-capture-batch validate-capture-batch ingest-capture-batch promote-capture-batch smoke-capture-batch ingest-external-dataset ingest-external-dataset-dry-run validate-external-manifest
 
 up:
 	docker compose up --build -d
@@ -113,6 +113,15 @@ promote-capture-batch:
 
 smoke-capture-batch:
 	python3 scripts/smoke_capture_batch.py
+
+ingest-external-dataset:
+	$(PYTHON) scripts/ingest_external_dataset.py --manifest $(MANIFEST) $(if $(FORCE),--force)
+
+ingest-external-dataset-dry-run:
+	$(PYTHON) scripts/ingest_external_dataset.py --manifest $(MANIFEST) --dry-run
+
+validate-external-manifest:
+	$(PYTHON) scripts/validate_external_manifest.py --manifest $(MANIFEST)
 
 clean:
 	docker compose down -v --rmi local

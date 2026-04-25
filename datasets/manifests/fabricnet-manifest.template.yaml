@@ -1,0 +1,28 @@
+# FabricNET Manifest Template
+#
+# Fill in source_url, source_license, and source_citation before ingestion.
+# See docs/datasets/fabricnet.md for details.
+
+dataset_name: FabricNET
+dataset_version: external_fabricnet_v0.1.0
+source_type: public_external
+source_url: ""  # FILL IN: URL where dataset was downloaded
+source_license: ""  # FILL IN: e.g., CC BY 4.0
+source_citation: ""  # FILL IN: BibTeX or reference
+commercial_use_allowed: false  # Review license before changing
+local_path: datasets/external/fabricnet
+label_schema:
+  primary_label: fabric_type
+  secondary_labels:
+    - weave
+    - warp_count
+    - weft_count
+    - mass
+splits:
+  strategy: deterministic_by_class_or_sample
+  train: 0.6
+  validation: 0.2
+  test: 0.2
+notes: >
+  Public microscopic woven fabric texture dataset. Used for evaluating fabric/canvas
+  embedding behavior, not for authentic-vs-counterfeit luxury authentication.

@@ -1,0 +1,26 @@
+# LeaData Manifest Template
+#
+# Fill in source_url, source_license, and source_citation before ingestion.
+# See docs/datasets/leadata.md for details.
+
+dataset_name: LeaData
+dataset_version: external_leadata_v0.1.0
+source_type: public_external
+source_url: ""  # FILL IN: URL where dataset was downloaded
+source_license: ""  # FILL IN: e.g., CC BY 4.0
+source_citation: ""  # FILL IN: BibTeX or reference
+commercial_use_allowed: false  # Review license before changing
+local_path: datasets/external/leadata
+label_schema:
+  primary_label: species
+  secondary_labels:
+    - body_part
+    - sample_id
+splits:
+  strategy: deterministic_by_sample
+  train: 0.6
+  validation: 0.2
+  test: 0.2
+notes: >
+  Public microscopic leather texture dataset. Used for evaluating leather-grain
+  embedding behavior, not for authentic-vs-counterfeit luxury authentication.

@@ -19,3 +19,12 @@ class RegionCodes:
         STITCHING_DETAIL,
         DATE_CODE_AREA,
     ]
+
+    # External public dataset regions (not luxury authentication regions)
+    EXTERNAL_LEATHER_TEXTURE = "EXTERNAL_LEATHER_TEXTURE"
+    EXTERNAL_FABRIC_TEXTURE = "EXTERNAL_FABRIC_TEXTURE"
+
+    EXTERNAL = [
+        EXTERNAL_LEATHER_TEXTURE,
+        EXTERNAL_FABRIC_TEXTURE,
+    ]

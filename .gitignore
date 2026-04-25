@@ -73,3 +73,14 @@ apps/android/app/build/
 
 # Reports (regenerable)
 reports/
+
+# External datasets (large, not committed)
+datasets/external/*
+!datasets/external/.gitkeep
+!datasets/external/README.md
+datasets/**/*.zip
+datasets/**/*.tar
+datasets/**/*.tar.gz
+datasets/**/*.tgz
+datasets/**/*.7z
+datasets/**/*.rar
