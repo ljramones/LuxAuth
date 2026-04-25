@@ -49,6 +49,23 @@ items:
     file: lv_auth_002/hardware_engraving_01.png
   - region_code: STITCHING_DETAIL
     file: lv_auth_002/stitching_detail_01.png
+  condition:
+    condition_grade: used_good
+    known_authenticity_basis: expert_opinion
+    known_repairs: true
+    third_party_repair: true
+    restoration_notes: Restitched side seam with non-OEM thread
+    provenance_notes: Synthetic test item
+    condition_notes: Moderate wear, good overall condition
+  component_conditions:
+  - region_code: STITCHING_DETAIL
+    component_type: thread
+    component_status: REPLACED_THIRD_PARTY
+    source: owner_disclosed
+    confidence: medium
+    exclude_from_auth_decision: false
+    expected_to_mismatch: true
+    notes: Known non-OEM thread repair for testing
 - external_item_id: lv_fake_001
   brand: Louis Vuitton
   category: handbag

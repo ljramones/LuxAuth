@@ -426,6 +426,40 @@ CREATE TABLE capture_batch_validation_reports (
 );
 
 -- =====================================================================
+-- Item Condition and Component Provenance
+-- =====================================================================
+
+CREATE TABLE item_condition_metadata (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    reference_item_id UUID REFERENCES reference_items(id),
+    capture_batch_item_id UUID REFERENCES capture_batch_items(id),
+    capture_session_id UUID REFERENCES capture_sessions(id),
+    condition_grade VARCHAR(100),
+    known_authenticity_basis TEXT,
+    known_repairs BOOLEAN NOT NULL DEFAULT FALSE,
+    third_party_repair BOOLEAN NOT NULL DEFAULT FALSE,
+    restoration_notes TEXT,
+    provenance_notes TEXT,
+    condition_notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE item_component_conditions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    item_condition_metadata_id UUID NOT NULL REFERENCES item_condition_metadata(id),
+    region_code VARCHAR(100) NOT NULL,
+    component_type VARCHAR(100),
+    component_status VARCHAR(100),
+    source VARCHAR(255),
+    confidence VARCHAR(50),
+    exclude_from_auth_decision BOOLEAN NOT NULL DEFAULT FALSE,
+    expected_to_mismatch BOOLEAN NOT NULL DEFAULT FALSE,
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- =====================================================================
 -- Dataset Governance
 -- =====================================================================
 
@@ -611,6 +645,11 @@ CREATE INDEX idx_capture_batch_images_batch ON capture_batch_images(capture_batc
 CREATE INDEX idx_capture_batch_images_item ON capture_batch_images(capture_batch_item_id);
 CREATE INDEX idx_capture_batch_images_sha ON capture_batch_images(sha256_checksum);
 CREATE INDEX idx_capture_batch_validation_batch ON capture_batch_validation_reports(capture_batch_id);
+
+CREATE INDEX idx_item_condition_ref_item ON item_condition_metadata(reference_item_id);
+CREATE INDEX idx_item_condition_batch_item ON item_condition_metadata(capture_batch_item_id);
+CREATE INDEX idx_item_component_cond_meta ON item_component_conditions(item_condition_metadata_id);
+CREATE INDEX idx_item_component_cond_region ON item_component_conditions(region_code);
 
 -- =====================================================================
 -- Seed Data

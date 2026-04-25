@@ -29,6 +29,26 @@ items:
     provenance_type: lab_curated  # synthetic | expert_review | receipt_verified | partner_supplied | lab_curated
     notes: |
       How was this item authenticated? Receipt, expert opinion, brand partner?
+    # Optional condition/provenance metadata (remove if not applicable)
+    # See docs/reference/item-condition-vocabulary.md for allowed values
+    condition:
+      condition_grade: pristine  # pristine | used_good | used_fair | heavily_worn
+      known_authenticity_basis: original_receipt  # original_receipt | expert_opinion | brand_authenticated | unverified
+      known_repairs: false
+      third_party_repair: false
+      restoration_notes: null
+      provenance_notes: "REPLACE: How was this item obtained?"
+      condition_notes: null
+    component_conditions: []
+    # Example component_conditions:
+    # - region_code: STITCHING_DETAIL
+    #   component_type: thread
+    #   component_status: REPLACED_THIRD_PARTY
+    #   source: owner_disclosed
+    #   confidence: medium
+    #   exclude_from_auth_decision: false
+    #   expected_to_mismatch: true
+    #   notes: "Known non-OEM thread repair"
     images:
       - region_code: EXTERIOR_CANVAS
         file: item_001/exterior_canvas_01.png

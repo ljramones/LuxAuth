@@ -84,3 +84,6 @@ datasets/**/*.tar.gz
 datasets/**/*.tgz
 datasets/**/*.7z
 datasets/**/*.rar
+
+# Academic papers / large PDFs (link to DOI instead)
+*.pdf

@@ -145,6 +145,50 @@ def main():
                      auth_status, label_conf, item_data.get("provenance_type", "synthetic"),
                      item_data.get("notes")))
 
+        # Validate optional condition metadata
+        condition = item_data.get("condition")
+        if condition:
+            valid_grades = {"pristine", "used_good", "used_fair", "heavily_worn"}
+            grade = condition.get("condition_grade")
+            if grade and grade not in valid_grades:
+                warnings.append(f"Item {ext_id}: unusual condition_grade '{grade}'")
+
+        # Validate optional component conditions
+        components = item_data.get("component_conditions", [])
+        for comp in components:
+            comp_region = comp.get("region_code", "")
+            if comp_region and comp_region not in valid_regions and valid_regions:
+                errors.append(f"Item {ext_id}: invalid component region '{comp_region}'. Valid: {sorted(valid_regions)}")
+
+        # Persist condition metadata if present
+        if condition:
+            cond_id = str(uuid.uuid4())
+            cur.execute("""INSERT INTO item_condition_metadata
+                           (id, capture_batch_item_id, condition_grade, known_authenticity_basis,
+                            known_repairs, third_party_repair, restoration_notes, provenance_notes, condition_notes)
+                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                        (cond_id, item_id,
+                         condition.get("condition_grade"),
+                         condition.get("known_authenticity_basis"),
+                         condition.get("known_repairs", False),
+                         condition.get("third_party_repair", False),
+                         condition.get("restoration_notes"),
+                         condition.get("provenance_notes"),
+                         condition.get("condition_notes")))
+
+            # Persist component conditions
+            for comp in components:
+                cur.execute("""INSERT INTO item_component_conditions
+                               (id, item_condition_metadata_id, region_code, component_type,
+                                component_status, source, confidence, exclude_from_auth_decision,
+                                expected_to_mismatch, notes)
+                               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                            (str(uuid.uuid4()), cond_id,
+                             comp.get("region_code"), comp.get("component_type"),
+                             comp.get("component_status"), comp.get("source"),
+                             comp.get("confidence"), comp.get("exclude_from_auth_decision", False),
+                             comp.get("expected_to_mismatch", False), comp.get("notes")))
+
         # Check region completeness for this item
         item_region_counts = {}
         for img_data in item_data.get("images", []):

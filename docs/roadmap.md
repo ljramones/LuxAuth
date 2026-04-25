@@ -75,6 +75,8 @@
 - Hard negative mining
 - Per-region model specialization
 - Threshold calibration on real validation set
+- See [ML Improvement Roadmap](roadmaps/ml-improvement-roadmap.md) for the detailed
+  phased plan derived from external critique
 
 ### AWS Deployment (When Ready)
 - ECS Fargate for services

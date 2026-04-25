@@ -89,12 +89,12 @@ Image Source
   │ capture-intake-service (live capture API)
   │ ingest scripts (batch/external ingestion)
   ▼
-Raw Evidence Storage (S3, immutable)
+Raw Evidence Storage (S3, preserved separately from derivatives)
   │
   ▼
 image-quality-service
   │ sharpness, exposure, glare checks
-  │ FAIL → pipeline stops for this image
+  │ FAIL → image preserved but should not advance through standard pipeline
   │ PASS ↓
   ▼
 normalization-service
@@ -168,8 +168,10 @@ using OpenCV):
 - Inconsistent capture quality creates false model behavior — the model may learn
   "camera artifacts" instead of "material signatures"
 
-Images that fail quality are logged and excluded from the pipeline. The raw evidence
-is preserved but not processed further.
+Images that fail quality are logged, and their raw evidence is preserved. They should
+not advance through the standard normalization/embedding path. The current implementation
+does not publish a downstream event for failed images, but the raw file remains
+accessible for manual review or re-assessment if quality thresholds are later adjusted.
 
 ---
 
@@ -186,9 +188,10 @@ The normalization service creates a standardized derivative suitable for embeddi
 4. **Resize to 512×512** — bilinear/Lanczos downsampling
 5. **Output as PNG** — lossless format for the model-ready derivative
 
-**The raw image is never modified.** It remains immutable evidence in S3 under a
-stable object key. The normalized derivative is a separate object used by downstream
-services.
+**The raw image is never modified.** It is preserved separately from normalized
+derivatives under a stable S3 object key. The current local implementation relies on
+object key conventions and application-level policy to maintain this separation.
+Production-grade immutability enforcement (e.g., S3 Object Lock) is future work.
 
 ```text
 Raw evidence:    s3://auth-platform-raw-evidence/scans/{org}/{session}/raw/{id}.jpg
@@ -270,7 +273,9 @@ similarity(A, B) = dot(A, B) / (|A| × |B|)
 ```
 
 For unit-normalized vectors (as LuxAuth uses), this simplifies to the dot product.
-Values range from -1 (opposite) to +1 (identical). Typical thresholds:
+Values range from -1 (opposite) to +1 (identical). The current local scoring rules
+use these approximate ranges, which are development defaults and not validated
+production thresholds:
 - \> 0.85: strong match
 - 0.50–0.85: moderate similarity
 - < 0.50: low similarity or mismatch
@@ -325,12 +330,19 @@ The vector-search-service applies multiple filters to ensure meaningful comparis
 meaningfully compared to a learned_metric embedding — they occupy completely different
 vector spaces.
 
-The search returns:
+**For authentication datasets** (with CONFIRMED_AUTHENTIC and CONFIRMED_COUNTERFEIT
+labels), the search returns:
 - **Nearest authentic references** (top-K by similarity)
 - **Nearest counterfeit references** (top-K by similarity)
 - **Authentic cluster score** (mean similarity to authentic neighbors)
 - **Counterfeit cluster score** (mean similarity to counterfeit neighbors)
 - **OOD score** (1 - max similarity, indicating out-of-distribution distance)
+
+**For public external datasets** (with PUBLIC_DATASET_CLASS labels), the search still
+runs but the authentic/counterfeit split is not meaningful. These datasets use class or
+material labels (e.g., species, fabric type) and the diagnostic value comes from
+nearest-neighbor consistency and embedding clustering, not from authentic-vs-counterfeit
+scoring.
 
 If no reference embeddings exist for the query's model version, the service falls back
 to a stub with a logged warning.
@@ -340,7 +352,9 @@ to a stub with a logged warning.
 ## 12. Region-Level Scoring
 
 The region-scoring-service converts vector search similarity scores into a categorical
-region decision using conservative thresholds:
+region decision. The current thresholds are local rules of thumb chosen for conservative
+behavior during development — they have not been validated on production data and will
+need calibration once real microscope datasets are available:
 
 | Condition | Decision |
 |---|---|
@@ -402,7 +416,7 @@ ML workflows.
 | `evaluation_runs` | Evaluation metadata and summary metrics |
 | `evaluation_items` | Per-image evaluation results |
 
-**Split assignment:**
+**Default split policy** (current implementation; may be adjusted per dataset):
 
 | Split | include_in_search | include_in_evaluation | include_in_training |
 |---|---|---|---|
@@ -412,10 +426,13 @@ ML workflows.
 | holdout | FALSE | FALSE | FALSE |
 
 **Leakage prevention:**
-- Same `external_item_id` / sample must not appear in multiple splits
+- All images from the same physical item (`reference_item_id` / `external_item_id`)
+  must remain in the same split — this is the fundamental intra-item leakage rule
 - Duplicate SHA-256 checksums across train/test splits are flagged
 - Perceptual hash duplicates are warned when available
-- Splits are assigned by item/sample, not by individual image
+- Splits are assigned by item/sample, never by individual image
+- Planned: enforce this as a hard validation failure during dataset promotion, not just
+  a convention (see [ML Improvement Roadmap](roadmaps/ml-improvement-roadmap.md))
 
 ---
 
@@ -547,6 +564,16 @@ The backend is **device-agnostic by design**:
 - **Public datasets validate texture behavior only**, not luxury goods discrimination.
 - **No object-lock or immutability enforcement** beyond S3 key conventions and
   application-level controls.
+- **No item condition or repair metadata.** Real luxury items may have known repairs,
+  replaced components, or third-party restoration that affect region-level evidence.
+  Condition tracking and repair-aware routing to expert review are planned
+  (see [ML Improvement Roadmap](roadmaps/ml-improvement-roadmap.md)).
+- **OOD detection is basic** (`1 - max_similarity`). More robust methods (Mahalanobis
+  distance, kNN density) require larger reference datasets.
+- **Center-crop normalization may discard edge texture** from rectangular microscope
+  captures. Multi-crop and padded-resize alternatives are planned for evaluation.
+- **Queue-driven pipeline is not latency-optimized** for real-time mobile use. Result
+  orchestration (polling, webhooks, synchronous fast-path) is future product work.
 
 ---
 
@@ -576,7 +603,7 @@ ship prematurely.
 
 | Term | Definition |
 |---|---|
-| **Raw evidence** | The original uploaded image file, stored immutably in S3 |
+| **Raw evidence** | The original uploaded image file, preserved in S3 separately from derivatives |
 | **Normalized derivative** | A standardized 512×512 RGB PNG created from raw evidence |
 | **Embedding** | A dense vector (128 floats) representing an image's content |
 | **Metric learning** | Training a model to place similar items close in embedding space |
@@ -600,6 +627,7 @@ ship prematurely.
 
 - [Repository README](../README.md)
 - [Development Roadmap](roadmap.md)
+- [ML Improvement Roadmap](roadmaps/ml-improvement-roadmap.md)
 - [Public Dataset Evaluation Plan](datasets/public-dataset-evaluation-plan.md)
 - [Dataset Storage Policy](datasets/dataset-storage-policy.md)
 - [External Dataset First Run Results](datasets/external-dataset-first-run-results.md)

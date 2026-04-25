@@ -59,7 +59,7 @@ def main():
             save_img(arr, OUTPUT_DIR / item["id"] / fname)
             item_images.append({"region_code": region, "file": rel_path})
 
-        manifest_items.append({
+        item_dict = {
             "external_item_id": item["id"],
             "brand": "Louis Vuitton",
             "category": "handbag",
@@ -71,7 +71,33 @@ def main():
             "provenance_type": "synthetic",
             "notes": "Synthetic local-dev sample, not real product data.",
             "images": item_images,
-        })
+        }
+
+        # Add condition metadata to lv_auth_002 as a test case
+        if item["id"] == "lv_auth_002":
+            item_dict["condition"] = {
+                "condition_grade": "used_good",
+                "known_authenticity_basis": "expert_opinion",
+                "known_repairs": True,
+                "third_party_repair": True,
+                "restoration_notes": "Restitched side seam with non-OEM thread",
+                "provenance_notes": "Synthetic test item",
+                "condition_notes": "Moderate wear, good overall condition",
+            }
+            item_dict["component_conditions"] = [
+                {
+                    "region_code": "STITCHING_DETAIL",
+                    "component_type": "thread",
+                    "component_status": "REPLACED_THIRD_PARTY",
+                    "source": "owner_disclosed",
+                    "confidence": "medium",
+                    "exclude_from_auth_decision": False,
+                    "expected_to_mismatch": True,
+                    "notes": "Known non-OEM thread repair for testing",
+                },
+            ]
+
+        manifest_items.append(item_dict)
 
     # Write manifest
     import yaml

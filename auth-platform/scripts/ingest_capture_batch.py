@@ -78,6 +78,10 @@ def main():
                     (str(uuid.uuid4()), ref_item_id, auth_status, label_conf, prov_type,
                      notes or f"From batch {batch_code}"))
 
+        # Link condition metadata to reference_item if present
+        cur.execute("UPDATE item_condition_metadata SET reference_item_id = %s WHERE capture_batch_item_id = %s",
+                    (ref_item_id, str(item_id)))
+
         # Get images for this item
         cur.execute("SELECT id, region_code, source_file_path, sha256_checksum, status FROM capture_batch_images WHERE capture_batch_item_id = %s AND status = 'VALIDATED'", (str(item_id),))
         images = cur.fetchall()
