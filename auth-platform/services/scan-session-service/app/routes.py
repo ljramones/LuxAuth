@@ -7,6 +7,8 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.settings import settings
+from auth_common.audit import record_audit_event
+from auth_common.correlation import get_correlation_id
 from auth_common.database import get_db
 from auth_common.logging import get_logger
 from auth_common.models import ScanSessionCreate, ScanSessionResponse
@@ -14,8 +16,6 @@ from auth_common.models import ScanSessionCreate, ScanSessionResponse
 logger = get_logger(settings.service_name)
 
 router = APIRouter()
-
-FALLBACK_REGIONS = ["front_logo", "interior_stamp", "hardware_closeup", "stitching_detail"]
 
 
 @router.get("/health")
@@ -43,6 +43,18 @@ async def _resolve_recipe(brand: str, category: str, material: str) -> dict | No
     return None
 
 
+async def _get_recipe_regions(recipe_id: str, db: AsyncSession) -> list[str]:
+    """Fetch region codes for a recipe from the database."""
+    result = await db.execute(
+        text(
+            "SELECT region_code FROM scan_recipe_regions "
+            "WHERE scan_recipe_id = :recipe_id ORDER BY sort_order"
+        ),
+        {"recipe_id": recipe_id},
+    )
+    return [row["region_code"] for row in result.mappings()]
+
+
 @router.post("/scan-sessions", response_model=ScanSessionResponse, status_code=201)
 async def create_scan_session(
     body: ScanSessionCreate,
@@ -51,65 +63,84 @@ async def create_scan_session(
     session_id = uuid.uuid4()
     now = datetime.now(timezone.utc)
 
-    recipe = await _resolve_recipe(body.claimed_brand, body.claimed_category, body.claimed_material)
+    recipe = await _resolve_recipe(
+        body.claimed_brand, body.claimed_category, body.claimed_material
+    )
 
-    recipe_id = None
-    required_regions = FALLBACK_REGIONS
-    if recipe:
-        recipe_id = recipe.get("id")
-        regions = recipe.get("regions", [])
-        if regions:
-            required_regions = [r["region_code"] for r in regions]
+    if not recipe:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No scan recipe found for brand={body.claimed_brand}, "
+                   f"category={body.claimed_category}, material={body.claimed_material}",
+        )
+
+    recipe_id = recipe["id"]
+    regions = recipe.get("regions", [])
+    required_regions = [r["region_code"] for r in regions]
 
     await db.execute(
         text(
             """
-            INSERT INTO scan_sessions (id, status, claimed_brand, claimed_category, claimed_material, device_id,
-                                       organization_id, scan_recipe_id, created_at)
-            VALUES (:id, :status, :brand, :category, :material, :device_id,
-                    :org_id, :recipe_id, :created_at)
+            INSERT INTO scan_sessions
+                (id, status, claimed_brand, claimed_category, claimed_material,
+                 claimed_model, device_id, organization_id, scan_recipe_id, created_at, updated_at)
+            VALUES
+                (:id, 'CREATED', :brand, :category, :material,
+                 :model, :device_id, :org_id, :recipe_id, :now, :now)
             """
         ),
         {
             "id": session_id,
-            "status": "pending",
             "brand": body.claimed_brand,
             "category": body.claimed_category,
             "material": body.claimed_material,
-            "device_id": body.device_id,
-            "org_id": body.organization_id,
+            "model": body.claimed_model,
+            "device_id": str(body.device_id),
+            "org_id": str(body.organization_id),
             "recipe_id": recipe_id,
-            "created_at": now,
+            "now": now,
         },
     )
-    # TODO: record audit event
 
-    logger.info("scan_session_created", session_id=str(session_id))
+    await record_audit_event(
+        db,
+        "SCAN_CREATED",
+        scan_session_id=session_id,
+        tenant_id=body.organization_id,
+        payload={"claimed_brand": body.claimed_brand, "recipe_id": recipe_id},
+    )
+
+    logger.info("scan_session_created", session_id=str(session_id), recipe_id=recipe_id)
 
     return ScanSessionResponse(
         id=session_id,
-        status="pending",
+        status="CREATED",
         claimed_brand=body.claimed_brand,
         claimed_category=body.claimed_category,
         claimed_material=body.claimed_material,
+        claimed_model=body.claimed_model,
         scan_recipe_id=recipe_id,
         required_regions=required_regions,
         created_at=now,
     )
 
 
-@router.get("/scan-sessions/{scan_session_id}", response_model=ScanSessionResponse)
+@router.get("/scan-sessions/{scan_session_id}")
 async def get_scan_session(
     scan_session_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
         text("SELECT * FROM scan_sessions WHERE id = :id"),
-        {"id": scan_session_id},
+        {"id": str(scan_session_id)},
     )
     row = result.mappings().first()
     if not row:
         raise HTTPException(status_code=404, detail="Scan session not found")
+
+    required_regions = []
+    if row["scan_recipe_id"]:
+        required_regions = await _get_recipe_regions(str(row["scan_recipe_id"]), db)
 
     return ScanSessionResponse(
         id=row["id"],
@@ -117,7 +148,8 @@ async def get_scan_session(
         claimed_brand=row["claimed_brand"],
         claimed_category=row["claimed_category"],
         claimed_material=row["claimed_material"],
-        scan_recipe_id=row.get("scan_recipe_id"),
-        required_regions=[],
+        claimed_model=row.get("claimed_model"),
+        scan_recipe_id=row["scan_recipe_id"],
+        required_regions=required_regions,
         created_at=row["created_at"],
     )

@@ -98,3 +98,36 @@ aws --endpoint-url=http://localhost:4566 sqs receive-message \
 ```bash
 psql -h localhost -U authplatform -d authplatform
 ```
+
+## Queue-Driven Pipeline
+
+In local development, each processing service runs an SQS worker loop as a background task alongside its FastAPI HTTP server. The worker polls its assigned queue, processes messages, and publishes to the next queue.
+
+### Observing the pipeline
+
+Watch logs for all services:
+```bash
+make logs
+```
+
+Worker activity appears as `processing_message` and `message_processed` log entries.
+
+### Direct HTTP endpoints
+
+All services retain their direct HTTP `/process/{id}` endpoints for debugging. These bypass the queue and execute processing synchronously.
+
+### Idempotency
+
+Processing is idempotent. Running `make smoke` multiple times is safe — duplicate processing is detected and skipped via the `processing_runs` table.
+
+### Inspecting queues
+
+```bash
+# List all queues
+aws --endpoint-url=http://localhost:4566 sqs list-queues
+
+# Check dead-letter queue
+aws --endpoint-url=http://localhost:4566 sqs get-queue-attributes \
+  --queue-url http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/dead-letter-queue \
+  --attribute-names ApproximateNumberOfMessages
+```

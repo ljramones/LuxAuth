@@ -14,6 +14,7 @@ class ServiceSettings(BaseSettings):
     s3_raw_bucket: str = "auth-platform-raw-evidence"
     sqs_quality_queue: str = "image-quality-queue"
     sqs_normalization_queue: str = "normalization-queue"
+    consume_queue: str = "image-quality-queue"
 
     model_config = {"env_prefix": "", "extra": "ignore"}
 

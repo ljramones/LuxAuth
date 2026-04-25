@@ -1,16 +1,17 @@
 import json
-import sys
 from uuid import UUID
-
-sys.path.insert(0, "/app/libs/auth_common")
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from auth_common.audit import record_audit_event
+from auth_common.correlation import get_correlation_id
 from auth_common.events import EventEnvelope, EventTypes
+from auth_common.imaging import compute_quality_metrics
 from auth_common.logging import get_logger
 from auth_common.messaging import send_message
 from auth_common.models import ImageQualityReport
+from auth_common.s3 import download_file
 
 from app.settings import settings
 
@@ -20,26 +21,32 @@ logger = get_logger(settings.service_name)
 async def process_image_quality(
     image_asset_id: UUID, db_session: AsyncSession
 ) -> ImageQualityReport:
-    """Assess image quality and produce a report.
+    """Assess image quality using real computer vision metrics."""
 
-    Generates deterministic scores derived from *image_asset_id* so the
-    behaviour is reproducible across runs.
-    """
+    # Look up raw image location
+    row = await db_session.execute(
+        text("SELECT scan_session_id, raw_object_uri FROM image_assets WHERE id = :id"),
+        {"id": str(image_asset_id)},
+    )
+    asset = row.mappings().one_or_none()
+    if asset is None:
+        raise ValueError(f"image_asset_id {image_asset_id} not found")
 
-    id_hash = hash(str(image_asset_id))
-    sharpness_score = 0.85 + (id_hash % 15) / 100.0
-    exposure_score = 0.80 + (id_hash % 20) / 100.0
-    glare_score = (id_hash % 20) / 100.0
+    scan_session_id = asset["scan_session_id"]
+    raw_uri = asset["raw_object_uri"]
 
-    issues: list[str] = []
-    if sharpness_score <= 0.5:
-        issues.append("sharpness below threshold")
-    if exposure_score <= 0.5:
-        issues.append("exposure below threshold")
-    if glare_score >= 0.5:
-        issues.append("excessive glare detected")
+    # Download raw image from S3
+    uri_parts = raw_uri.replace("s3://", "").split("/", 1)
+    raw_bytes = download_file(uri_parts[0], uri_parts[1])
 
-    quality_status = "PASS" if not issues else "FAIL"
+    # Compute real quality metrics
+    metrics = compute_quality_metrics(raw_bytes)
+
+    sharpness_score = metrics["sharpness_score"]
+    exposure_score = metrics["exposure_score"]
+    glare_score = metrics["glare_score"]
+    quality_status = metrics["quality_status"]
+    issues = metrics["issues"]
 
     # Persist to image_quality_reports table
     await db_session.execute(
@@ -69,36 +76,32 @@ async def process_image_quality(
     )
     await db_session.commit()
 
-    # If quality passed, look up scan_session_id and publish downstream
+    # If quality passed, publish downstream
     if quality_status == "PASS":
-        row = await db_session.execute(
-            text(
-                "SELECT scan_session_id FROM image_assets WHERE id = :id"
-            ),
-            {"id": str(image_asset_id)},
-        )
-        scan_session_id = row.scalar_one_or_none()
-
         envelope = EventEnvelope(
             event_type=EventTypes.IMAGE_QUALITY_COMPLETED,
+            correlation_id=get_correlation_id(),
+            scan_session_id=scan_session_id,
+            image_id=image_asset_id,
+            source_service=settings.service_name,
             payload={
                 "image_asset_id": str(image_asset_id),
-                "scan_session_id": str(scan_session_id) if scan_session_id else None,
+                "scan_session_id": str(scan_session_id),
                 "quality_status": quality_status,
             },
         )
         send_message(settings.sqs_normalization_queue, envelope)
-        logger.info(
-            "quality PASS - published to normalization queue",
-            extra={"image_asset_id": str(image_asset_id)},
-        )
+        logger.info("quality_pass", image_asset_id=str(image_asset_id))
     else:
-        logger.info(
-            "quality FAIL - not forwarding",
-            extra={"image_asset_id": str(image_asset_id), "issues": issues},
-        )
+        logger.info("quality_fail", image_asset_id=str(image_asset_id), issues=issues)
 
-    # TODO: emit audit event
+    await record_audit_event(
+        db_session,
+        "IMAGE_QUALITY_COMPLETED",
+        image_id=image_asset_id,
+        scan_session_id=scan_session_id,
+        payload={"quality_status": quality_status, "sharpness_score": sharpness_score, "issues": issues},
+    )
 
     return ImageQualityReport(
         image_asset_id=image_asset_id,

@@ -10,6 +10,7 @@ class ServiceSettings(BaseSettings):
     aws_access_key_id: str = "test"
     aws_secret_access_key: str = "test"
     aws_default_region: str = "us-east-1"
+    consume_queue: str = "decision-queue"
     model_config = {"env_prefix": "", "extra": "ignore"}
 
 

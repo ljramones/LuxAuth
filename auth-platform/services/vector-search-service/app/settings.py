@@ -14,6 +14,7 @@ class ServiceSettings(BaseSettings):
     sqs_vector_search_queue: str = "vector-search-queue"
     sqs_region_scoring_queue: str = "region-scoring-queue"
     top_k: int = 5
+    consume_queue: str = "vector-search-queue"
 
     model_config = {"env_prefix": "", "extra": "ignore"}
 

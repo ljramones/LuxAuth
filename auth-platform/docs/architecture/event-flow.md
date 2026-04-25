@@ -1,76 +1,98 @@
 # Event Flow
 
-## Pipeline Overview
+## Pipeline Architecture
 
-When a user uploads a microscopic image, it flows through a series of processing stages. Each stage is triggered by an event from the previous stage, published via SQS.
+The authentication pipeline is event-driven. Each processing stage consumes messages from an SQS queue,
+performs its work, and publishes to the next queue.
 
-```
- Mobile App / API Client
-        │
-        ▼
- ┌──────────────────────┐
- │ evidence-asset-service│  POST /scan-sessions/{id}/images
- │       (8104)          │
- └──────────┬───────────┘
-            │ ImageUploaded
-            ▼
- ┌──────────────────────┐
- │ image-quality-service │  Assess sharpness, blur, lighting
- │       (8201)          │
- └──────────┬───────────┘
-            │ ImageQualityCompleted  (pass/fail + metrics)
-            ▼
- ┌──────────────────────┐
- │ normalization-service │  Crop, resize, color-correct
- │       (8202)          │
- └──────────┬───────────┘
-            │ ImageNormalized  (normalized S3 key)
-            ▼
- ┌──────────────────────┐
- │  embedding-service    │  Generate vector embedding
- │       (8203)          │
- └──────────┬───────────┘
-            │ EmbeddingGenerated  (embedding vector)
-            ▼
- ┌──────────────────────┐
- │ vector-search-service │  Search reference DB (pgvector)
- │       (8204)          │
- └──────────┬───────────┘
-            │ VectorSearchCompleted  (top-K matches + distances)
-            ▼
- ┌──────────────────────┐
- │ region-scoring-service│  Score region authenticity
- │       (8205)          │
- └──────────┬───────────┘
-            │ RegionScored  (score + confidence)
-            ▼
- ┌──────────────────────┐
- │  decision-service     │  Aggregate scores → verdict
- │       (8301)          │
- └──────────┬───────────┘
-            │ AuthenticationDecisionCreated
-            ▼
-      AUTHENTIC / SUSPECT / INCONCLUSIVE
+```text
+evidence-asset-service
+  │ publishes IMAGE_UPLOADED
+  ▼
+image-quality-queue
+  │ consumed by image-quality-service worker
+  │ publishes IMAGE_QUALITY_COMPLETED
+  ▼
+normalization-queue
+  │ consumed by normalization-service worker
+  │ publishes IMAGE_NORMALIZED
+  ▼
+embedding-queue
+  │ consumed by embedding-service worker
+  │ publishes EMBEDDING_GENERATED
+  ▼
+vector-search-queue
+  │ consumed by vector-search-service worker
+  │ publishes VECTOR_SEARCH_COMPLETED
+  ▼
+region-scoring-queue
+  │ consumed by region-scoring-service worker
+  │ publishes REGION_SCORED
+  ▼
+decision-queue
+  │ consumed by decision-service worker
+  │ checks if all required regions are scored
+  │ if complete → creates AUTHENTICATION_DECISION
+  ▼
+authentication_decisions table
 ```
 
 ## Event Types
 
-| Event | Producer | Consumer | Queue | Payload (key fields) |
-|---|---|---|---|---|
-| ImageUploaded | evidence-asset-service | image-quality-service | `image-uploaded` | image_id, s3_key, scan_session_id, region_code |
-| ImageQualityCompleted | image-quality-service | normalization-service | `image-quality-completed` | image_id, passed, sharpness, blur_score |
-| ImageNormalized | normalization-service | embedding-service | `image-normalized` | image_id, normalized_s3_key |
-| EmbeddingGenerated | embedding-service | vector-search-service | `embedding-generated` | image_id, embedding_vector (or ref) |
-| VectorSearchCompleted | vector-search-service | region-scoring-service | `vector-search-completed` | image_id, matches[ {ref_id, distance} ] |
-| RegionScored | region-scoring-service | decision-service | `region-scored` | image_id, scan_session_id, region_code, score, confidence |
-| AuthenticationDecisionCreated | decision-service | review-service, certificate-service | `authentication-decision-created` | scan_session_id, verdict, confidence, region_scores |
+| Event Type | Producer | Consumer Queue | Consumer Service |
+|---|---|---|---|
+| IMAGE_UPLOADED | evidence-asset-service | image-quality-queue | image-quality-service |
+| IMAGE_QUALITY_COMPLETED | image-quality-service | normalization-queue | normalization-service |
+| IMAGE_NORMALIZED | normalization-service | embedding-queue | embedding-service |
+| EMBEDDING_GENERATED | embedding-service | vector-search-queue | vector-search-service |
+| VECTOR_SEARCH_COMPLETED | vector-search-service | region-scoring-queue | region-scoring-service |
+| REGION_SCORED | region-scoring-service | decision-queue | decision-service |
+| AUTHENTICATION_DECISION_CREATED | decision-service | — | — |
+| PROCESSING_FAILED | any service | — | audit trail |
 
-## Queue Assignments
+## Event Envelope
 
-Each event type maps to a dedicated SQS queue. Dead-letter queues (DLQ) are configured for each with a max receive count of 3 before messages are moved to the DLQ for investigation.
+All events use a standard `EventEnvelope`:
 
-## Notes
+```json
+{
+  "event_id": "uuid",
+  "event_type": "image.quality_completed",
+  "correlation_id": "uuid",
+  "tenant_id": "uuid",
+  "scan_session_id": "uuid",
+  "image_id": "uuid",
+  "region_code": "EXTERIOR_CANVAS",
+  "source_service": "image-quality-service",
+  "schema_version": "1.0",
+  "timestamp": "2026-04-25T12:00:00Z",
+  "payload": { ... }
+}
+```
 
-- If `ImageQualityCompleted` reports a failure (image too blurry, etc.), the pipeline stops for that image. The scan session may still proceed if other region images pass.
-- The decision-service waits until all required regions for a scan session have been scored before producing a verdict.
-- `AuthenticationDecisionCreated` fans out to both review-service (for low-confidence routing) and certificate-service (for high-confidence issuance).
+## Idempotency
+
+Each processing stage uses an idempotency key to prevent duplicate processing:
+
+| Stage | Key Components |
+|---|---|
+| IMAGE_QUALITY | image_id + stage + quality_model_version |
+| NORMALIZATION | image_id + stage + preprocessing_version |
+| EMBEDDING | image_id + stage + embedding_model_version |
+| VECTOR_SEARCH | image_id + stage + reference_dataset_version + embedding_model_version |
+| REGION_SCORING | image_id + stage + scoring_rule_version |
+| DECISION | scan_session_id + stage + decision_rule_version |
+
+Duplicate messages are detected via the `processing_runs` table and safely skipped.
+
+## Dead Letter Queue
+
+All processing queues are configured with a redrive policy pointing to `dead-letter-queue` after 3 failed receives. Failed processing also records a `PROCESSING_FAILED` audit event.
+
+## Correlation IDs
+
+Every request and event carries a `correlation_id` (UUID). If not provided, one is generated at the entry point. The correlation ID flows through:
+- HTTP request headers (`X-Correlation-ID`)
+- SQS event envelopes
+- Structured log entries
+- Audit event records

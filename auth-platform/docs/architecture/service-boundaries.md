@@ -44,6 +44,18 @@ Services that aggregate evidence into decisions, support human review, and issue
 | review-service (8302) | Manages a queue of low-confidence or flagged decisions for human expert review. |
 | certificate-service (8303) | Issues tamper-evident authentication certificates for verified-authentic products. |
 
+### Queue Assignments
+
+| Service | Consumes | Produces To |
+|---|---|---|
+| evidence-asset-service | — | image-quality-queue |
+| image-quality-service | image-quality-queue | normalization-queue |
+| normalization-service | normalization-queue | embedding-queue |
+| embedding-service | embedding-queue | vector-search-queue |
+| vector-search-service | vector-search-queue | region-scoring-queue |
+| region-scoring-service | region-scoring-queue | decision-queue |
+| decision-service | decision-queue | — |
+
 ## Inter-Service Communication
 
 - **Synchronous (HTTP):** Used for queries that need an immediate response — e.g., scan-session-service fetching a scan recipe, or the decision-service reading region scores.

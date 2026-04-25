@@ -1,14 +1,16 @@
 import uuid
 from datetime import datetime, timezone
+from uuid import UUID
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from auth_common.logging import get_logger
-from auth_common.models import RegionScore
-from auth_common.events import EventEnvelope, EventTypes
-from auth_common.messaging import send_message
+from auth_common.audit import record_audit_event
 from auth_common.correlation import get_correlation_id
+from auth_common.events import EventEnvelope, EventTypes
+from auth_common.logging import get_logger
+from auth_common.messaging import send_message
+from auth_common.models import RegionScore
 
 from app.settings import settings
 
@@ -80,10 +82,27 @@ async def score_region(
         region_decision=region_decision,
     )
 
+    # Record audit event
+    await record_audit_event(
+        db_session,
+        "REGION_SCORED",
+        image_id=UUID(image_asset_id),
+        payload={
+            "region_code": region_code,
+            "region_decision": region_decision,
+            "authentic_similarity": authentic_similarity,
+            "counterfeit_similarity": counterfeit_similarity,
+        },
+    )
+
     # Publish event to decision queue
     envelope = EventEnvelope(
         event_type=EventTypes.REGION_SCORED,
         correlation_id=get_correlation_id(),
+        scan_session_id=UUID(scan_session_id),
+        image_id=UUID(image_asset_id),
+        region_code=region_code,
+        source_service=settings.service_name,
         payload={
             "region_score_id": region_score_id,
             "scan_session_id": scan_session_id,

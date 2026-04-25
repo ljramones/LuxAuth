@@ -15,6 +15,7 @@ class ServiceSettings(BaseSettings):
     s3_normalized_bucket: str = "auth-platform-normalized-evidence"
     sqs_normalization_queue: str = "normalization-queue"
     sqs_embedding_queue: str = "embedding-queue"
+    consume_queue: str = "normalization-queue"
 
     model_config = {"env_prefix": "", "extra": "ignore"}
 

@@ -3,7 +3,10 @@ from uuid import UUID, uuid4
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from auth_common.audit import record_audit_event
+from auth_common.correlation import get_correlation_id
 from auth_common.events import EventEnvelope, EventTypes
+from auth_common.imaging import normalize_image as do_normalize
 from auth_common.logging import get_logger
 from auth_common.messaging import send_message
 from auth_common.models import NormalizationResult
@@ -13,15 +16,14 @@ from app.settings import settings
 
 logger = get_logger(settings.service_name)
 
-PREPROCESSING_VERSION = "normalize_stub_v0.1.0"
+PREPROCESSING_VERSION = "normalize_image_v0.1.0"
 
 
 async def normalize_image(
     image_asset_id: UUID, db_session: AsyncSession
 ) -> NormalizationResult:
-    """Download a raw image, apply stub normalization, and upload the result."""
+    """Download raw image, normalize to 512x512 RGB PNG, upload result."""
 
-    # Look up scan_session_id and raw_object_uri from image_assets
     row = await db_session.execute(
         text("SELECT scan_session_id, raw_object_uri FROM image_assets WHERE id = :id"),
         {"id": str(image_asset_id)},
@@ -31,30 +33,25 @@ async def normalize_image(
         raise ValueError(f"image_asset_id {image_asset_id} not found")
 
     scan_session_id = asset["scan_session_id"]
-    raw_object_uri = asset["raw_object_uri"]  # e.g. s3://bucket/key
+    raw_uri = asset["raw_object_uri"]
 
-    # Extract S3 key from URI
-    # raw_object_uri format: s3://bucket-name/path/to/file
-    uri_parts = raw_object_uri.replace("s3://", "").split("/", 1)
-    raw_bucket = uri_parts[0]
-    raw_key = uri_parts[1]
+    # Download raw image
+    uri_parts = raw_uri.replace("s3://", "").split("/", 1)
+    raw_bytes = download_file(uri_parts[0], uri_parts[1])
 
-    # Download raw image from S3
-    raw_bytes = download_file(raw_bucket, raw_key)
+    # Real normalization: EXIF fix, RGB, center-crop, resize to 512x512, PNG
+    normalized_bytes = do_normalize(raw_bytes, target_size=512)
 
-    # Stub normalization: pass through bytes unchanged
-    normalized_bytes = raw_bytes
-
-    # Upload normalized image
-    normalized_key = f"{scan_session_id}/{image_asset_id}_normalized.bin"
+    # Upload normalized PNG
+    normalized_key = f"{scan_session_id}/{image_asset_id}_normalized.png"
     normalized_uri = upload_file(
         settings.s3_normalized_bucket,
         normalized_key,
         normalized_bytes,
-        content_type="application/octet-stream",
+        content_type="image/png",
     )
 
-    # Persist to normalized_images table
+    # Persist
     await db_session.execute(
         text(
             """
@@ -74,11 +71,20 @@ async def normalize_image(
     )
     await db_session.commit()
 
-    # Publish downstream event
+    await record_audit_event(
+        db_session,
+        "IMAGE_NORMALIZED",
+        image_id=image_asset_id,
+        scan_session_id=scan_session_id,
+        payload={"normalized_object_uri": normalized_uri, "preprocessing_version": PREPROCESSING_VERSION},
+    )
+
     envelope = EventEnvelope(
         event_type=EventTypes.IMAGE_NORMALIZED,
+        correlation_id=get_correlation_id(),
         scan_session_id=scan_session_id,
         image_id=image_asset_id,
+        source_service=settings.service_name,
         payload={
             "image_asset_id": str(image_asset_id),
             "scan_session_id": str(scan_session_id),

@@ -1,44 +1,45 @@
-import hashlib
-import math
-import random
-import sys
 from uuid import UUID
-
-sys.path.insert(0, "/app/libs/auth_common")
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from auth_common.audit import record_audit_event
+from auth_common.correlation import get_correlation_id
 from auth_common.events import EventEnvelope, EventTypes
+from auth_common.imaging import compute_texture_embedding
 from auth_common.logging import get_logger
 from auth_common.messaging import send_message
 from auth_common.models import EmbeddingRecord
+from auth_common.s3 import download_file
 
 from app.settings import settings
 
 logger = get_logger(settings.service_name)
 
-EMBEDDING_DIM = 768
-EMBEDDING_MODEL_VERSION = "stub_embedder_v0.1.0"
-
-
-def _generate_embedding(image_asset_id: UUID) -> list[float]:
-    """Generate a deterministic fake 768-dim unit-length embedding."""
-    seed = int(
-        hashlib.sha256(str(image_asset_id).encode()).hexdigest(), 16
-    ) % (2**32)
-    rng = random.Random(seed)
-    raw = [rng.uniform(-1.0, 1.0) for _ in range(EMBEDDING_DIM)]
-    magnitude = math.sqrt(sum(x * x for x in raw))
-    return [x / magnitude for x in raw]
+EMBEDDING_DIM = 128
+EMBEDDING_MODEL_VERSION = "texture_baseline_v0.1.0"
 
 
 async def generate_embedding(
     image_asset_id: UUID, db_session: AsyncSession
 ) -> EmbeddingRecord:
-    """Generate and store a vector embedding for the given image asset."""
+    """Generate texture baseline embedding from normalized image."""
 
-    embedding = _generate_embedding(image_asset_id)
+    # Look up normalized image URI
+    row = await db_session.execute(
+        text("SELECT normalized_object_uri FROM normalized_images WHERE image_asset_id = :id"),
+        {"id": str(image_asset_id)},
+    )
+    norm_row = row.mappings().one_or_none()
+    if norm_row is None:
+        raise ValueError(f"No normalized image for {image_asset_id}")
+
+    norm_uri = norm_row["normalized_object_uri"]
+    uri_parts = norm_uri.replace("s3://", "").split("/", 1)
+    norm_bytes = download_file(uri_parts[0], uri_parts[1])
+
+    # Compute real texture embedding
+    embedding = compute_texture_embedding(norm_bytes, dim=EMBEDDING_DIM)
 
     # Format as pgvector literal
     vec_str = "[" + ",".join(f"{v:.8f}" for v in embedding) + "]"
@@ -64,16 +65,27 @@ async def generate_embedding(
     )
     await db_session.commit()
 
-    # Look up scan_session_id for the event payload
-    row = await db_session.execute(
+    # Look up scan_session_id
+    row2 = await db_session.execute(
         text("SELECT scan_session_id FROM image_assets WHERE id = :id"),
         {"id": str(image_asset_id)},
     )
-    scan_session_id = row.scalar_one_or_none()
+    scan_session_id = row2.scalar_one_or_none()
 
-    # Publish downstream event
+    await record_audit_event(
+        db_session,
+        "EMBEDDING_GENERATED",
+        image_id=image_asset_id,
+        scan_session_id=scan_session_id,
+        payload={"embedding_model_version": EMBEDDING_MODEL_VERSION, "dim": EMBEDDING_DIM},
+    )
+
     envelope = EventEnvelope(
         event_type=EventTypes.EMBEDDING_GENERATED,
+        correlation_id=get_correlation_id(),
+        scan_session_id=scan_session_id,
+        image_id=image_asset_id,
+        source_service=settings.service_name,
         payload={
             "image_asset_id": str(image_asset_id),
             "scan_session_id": str(scan_session_id) if scan_session_id else None,
@@ -81,15 +93,10 @@ async def generate_embedding(
         },
     )
     send_message(settings.sqs_vector_search_queue, envelope)
-    logger.info(
-        "embedding generated - published to vector-search queue",
-        extra={"image_asset_id": str(image_asset_id)},
-    )
-
-    # TODO: emit audit event
+    logger.info("embedding_generated", image_asset_id=str(image_asset_id))
 
     return EmbeddingRecord(
         image_asset_id=image_asset_id,
-        embedding=embedding[:10],  # Only first 10 elements for brevity
+        embedding=embedding[:10],
         embedding_model_version=EMBEDDING_MODEL_VERSION,
     )

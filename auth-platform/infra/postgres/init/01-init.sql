@@ -96,6 +96,11 @@ CREATE TABLE image_assets (
     checksum VARCHAR(128),
     file_size_bytes BIGINT,
     content_type VARCHAR(100),
+    width INT,
+    height INT,
+    image_format VARCHAR(20),
+    color_mode VARCHAR(20),
+    sha256_checksum VARCHAR(64),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -122,7 +127,7 @@ CREATE TABLE normalized_images (
 CREATE TABLE embeddings (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     image_asset_id UUID NOT NULL UNIQUE,
-    embedding vector(768) NOT NULL,
+    embedding vector(128) NOT NULL,
     embedding_model_version VARCHAR(100),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -229,6 +234,20 @@ CREATE TABLE model_versions (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE processing_runs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    idempotency_key VARCHAR(512) NOT NULL UNIQUE,
+    stage VARCHAR(100) NOT NULL,
+    scan_session_id UUID,
+    image_id UUID,
+    status VARCHAR(50) NOT NULL DEFAULT 'STARTED',
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    error_message TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- =====================================================================
 -- Indexes
 -- =====================================================================
@@ -284,6 +303,11 @@ CREATE INDEX idx_audit_events_created_at ON audit_events(created_at);
 CREATE INDEX idx_model_versions_model_name ON model_versions(model_name);
 CREATE INDEX idx_model_versions_is_active ON model_versions(is_active);
 
+CREATE INDEX idx_processing_runs_idempotency_key ON processing_runs(idempotency_key);
+CREATE INDEX idx_processing_runs_stage ON processing_runs(stage);
+CREATE INDEX idx_processing_runs_status ON processing_runs(status);
+CREATE INDEX idx_processing_runs_scan_session_id ON processing_runs(scan_session_id);
+
 -- =====================================================================
 -- Seed Data
 -- =====================================================================
@@ -304,31 +328,31 @@ INSERT INTO devices (id, organization_id, device_serial, device_type, firmware_v
 
 -- Scan Recipe: Louis Vuitton Monogram Canvas Handbag
 INSERT INTO scan_recipes (id, recipe_key, brand, category, material, version, is_active) VALUES
-    ('d0000000-0000-0000-0000-000000000001', 'lv-monogram-canvas-handbag',
-     'Louis Vuitton', 'Handbag', 'Monogram Canvas', 1, TRUE);
+    ('d0000000-0000-0000-0000-000000000001', 'lv_monogram_canvas_handbag_v1',
+     'Louis Vuitton', 'handbag', 'monogram_canvas', 1, TRUE);
 
 INSERT INTO scan_recipe_regions (id, scan_recipe_id, region_code, display_name, min_images, magnification_profile, lighting_profile, sort_order) VALUES
     ('e0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001',
-     'EXTERIOR_CANVAS', 'Exterior Canvas Pattern', 3, '10x', 'DIFFUSE', 1),
+     'EXTERIOR_CANVAS', 'Exterior Canvas Pattern', 1, '10x', 'DIFFUSE', 1),
     ('e0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000001',
-     'STITCHING_EDGE', 'Edge Stitching Detail', 2, '20x', 'DIRECTIONAL', 2),
+     'FRONT_LOGO_PRINT', 'Front Logo Print', 1, '20x', 'DIFFUSE', 2),
     ('e0000000-0000-0000-0000-000000000003', 'd0000000-0000-0000-0000-000000000001',
-     'HARDWARE_ENGRAVING', 'Hardware Engraving', 2, '30x', 'ANGLED', 3),
+     'INTERIOR_HEAT_STAMP', 'Interior Heat Stamp', 1, '20x', 'RAKING', 3),
     ('e0000000-0000-0000-0000-000000000004', 'd0000000-0000-0000-0000-000000000001',
-     'HEAT_STAMP', 'Heat Stamp Impression', 2, '20x', 'RAKING', 4),
+     'HARDWARE_ENGRAVING', 'Hardware Engraving', 1, '30x', 'ANGLED', 4),
     ('e0000000-0000-0000-0000-000000000005', 'd0000000-0000-0000-0000-000000000001',
-     'DATE_CODE', 'Date Code', 1, '30x', 'DIFFUSE', 5);
+     'STITCHING_DETAIL', 'Stitching Detail', 1, '20x', 'DIRECTIONAL', 5);
 
 -- Reference Items
 INSERT INTO reference_items (id, authenticity_status, brand, category, model, material, production_year, source, chain_of_custody, label_confidence) VALUES
     ('f0000000-0000-0000-0000-000000000001', 'CONFIRMED_AUTHENTIC',
-     'Louis Vuitton', 'Handbag', 'Speedy 30', 'Monogram Canvas', 2022,
+     'Louis Vuitton', 'handbag', 'Speedy 30', 'monogram_canvas', 2022,
      'Brand Partner', 'Provided directly by LVMH authentication team', 'HIGH'),
     ('f0000000-0000-0000-0000-000000000002', 'CONFIRMED_AUTHENTIC',
-     'Louis Vuitton', 'Handbag', 'Neverfull MM', 'Monogram Canvas', 2023,
+     'Louis Vuitton', 'handbag', 'Neverfull MM', 'monogram_canvas', 2023,
      'Brand Partner', 'Provided directly by LVMH authentication team', 'HIGH'),
     ('f0000000-0000-0000-0000-000000000003', 'CONFIRMED_COUNTERFEIT',
-     'Louis Vuitton', 'Handbag', 'Speedy 30', 'Monogram Canvas', 2023,
+     'Louis Vuitton', 'handbag', 'Speedy 30', 'monogram_canvas', 2023,
      'Customs Seizure', 'Seized by US CBP, case ref CBP-2023-44891', 'HIGH');
 
 -- Reference Images
@@ -349,14 +373,24 @@ INSERT INTO reference_images (id, reference_item_id, region_code, device_profile
      'STITCHING_EDGE', 'HANDHELD_MICROSCOPE_v2', 'DIRECTIONAL',
      's3://auth-platform-reference-library/lv/counterfeit/speedy30/stitching_edge_001.png', 'PASS');
 
+-- Reference Embeddings table
+CREATE TABLE reference_embeddings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    reference_image_id UUID NOT NULL REFERENCES reference_images(id),
+    embedding vector(128) NOT NULL,
+    embedding_model_version VARCHAR(100),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_reference_embeddings_ref_image ON reference_embeddings(reference_image_id);
+CREATE INDEX idx_reference_embeddings_hnsw ON reference_embeddings USING hnsw (embedding vector_cosine_ops);
+
 -- Model Version
 INSERT INTO model_versions (id, model_name, model_version, model_type, artifact_uri, description, is_active) VALUES
     ('20000000-0000-0000-0000-000000000001', 'luxury-embed-v1', '1.0.0-stub', 'EMBEDDING',
      's3://auth-platform-ml-artifacts/models/luxury-embed-v1/1.0.0-stub/',
-     'Stub embedding model for local development. Produces deterministic 768-dim vectors.', TRUE);
+     'Stub embedding model for local development. Produces deterministic 128-dim vectors.', TRUE);
 
--- Fake 768-dim embeddings for reference images
--- Each embedding is a deterministic vector seeded from the image ID ordinal
+-- Seed 128-dim embeddings for reference images into reference_embeddings
 DO $$
 DECLARE
     img_ids UUID[] := ARRAY[
@@ -374,39 +408,20 @@ BEGIN
     FOR idx IN 1..array_length(img_ids, 1) LOOP
         img_id := img_ids[idx];
         seed_val := idx;
-
-        -- Build a 768-dim vector string: each component = sin(seed * dim_index) for variety
         vec_text := '[';
-        FOR i IN 1..768 LOOP
-            vec_text := vec_text || round(sin(seed_val * i * 0.01)::numeric, 6)::text;
-            IF i < 768 THEN
+        FOR i IN 1..128 LOOP
+            vec_text := vec_text || round(sin(seed_val * i * 0.1)::numeric, 6)::text;
+            IF i < 128 THEN
                 vec_text := vec_text || ',';
             END IF;
         END LOOP;
         vec_text := vec_text || ']';
-
-        -- We need an image_asset row to satisfy the FK on embeddings.
-        -- Create stub image_asset entries tied to no real scan session.
-        -- Instead, store reference embeddings directly via a reference_embeddings approach.
-        -- Since the embeddings table requires image_asset_id FK, we skip inserting into
-        -- embeddings for reference images. In production, reference embeddings would
-        -- live in a dedicated table or be indexed directly in pgvector.
-        -- For dev seed purposes, we insert them without FK constraint by using
-        -- a separate reference_embeddings approach:
-
-        -- Actually, let's just insert directly using the vector cast.
-        -- We'll create a simple reference embedding table or use raw SQL.
-        -- For simplicity, store in a dedicated spot:
         EXECUTE format(
-            'INSERT INTO embeddings (id, image_asset_id, embedding, embedding_model_version, created_at) VALUES (uuid_generate_v4(), %L, %L::vector, %L, NOW())',
-            img_id, vec_text, '1.0.0-stub'
+            'INSERT INTO reference_embeddings (id, reference_image_id, embedding, embedding_model_version, created_at) VALUES (uuid_generate_v4(), %L, %L::vector, %L, NOW())',
+            img_id, vec_text, 'texture_baseline_v0.1.0'
         );
     END LOOP;
 END $$;
-
--- Note: The embeddings above reference reference_images IDs rather than image_assets IDs.
--- This is intentional seed data for local dev to populate the vector index.
--- In production, reference embeddings are managed separately.
 
 -- Create HNSW index on embeddings for fast similarity search
 CREATE INDEX idx_embeddings_vector_hnsw ON embeddings USING hnsw (embedding vector_cosine_ops);
