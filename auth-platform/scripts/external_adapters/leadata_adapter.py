@@ -1,19 +1,26 @@
 """LeaData adapter — microscopic leather texture images.
 
-Walks the local LeaData directory and produces normalized ingestion records.
-Expected structure:
-  leadata/images/{species}/{body_part}/{sample_id}.{ext}
-  or
-  leadata/{species}/{filename}.{ext}
+LeaData V1 layout:
+  LeaData-V1/{Species}/{SamplePrefix} ({index}).jpg
 
-Falls back to flat directory listing if structure is ambiguous.
+Examples:
+  LeaData-V1/Cow/CBTS3 (1).jpg
+  LeaData-V1/Goat/GBTS16 (105).jpg
+  LeaData-V1/Sheep/SBTS6 (57).jpg
+  LeaData-V1/Buffalo/BBTS1 (12).jpg
+
+Species is inferred from the top-level folder name.
+Sample group is inferred from the filename prefix before the space/parenthesis.
 """
 
-import os
+import re
 from pathlib import Path
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp"}
 REGION_CODE = "EXTERNAL_LEATHER_TEXTURE"
+
+# Extract sample prefix: "CBTS3" from "CBTS3 (1).jpg" or "CBTS3.jpg"
+SAMPLE_PREFIX_PATTERN = re.compile(r"^([A-Za-z]+\d+)")
 
 
 def load_records(local_path: str | Path) -> list[dict]:
@@ -23,36 +30,30 @@ def load_records(local_path: str | Path) -> list[dict]:
         raise FileNotFoundError(f"LeaData path not found: {root}")
 
     records = []
-    seen_items = set()
 
-    # Try structured path: {root}/images/{species}/{body_part}/{file}
-    images_dir = root / "images"
-    if not images_dir.exists():
-        images_dir = root  # fall back to root
+    for species_dir in sorted(root.iterdir()):
+        if not species_dir.is_dir():
+            continue
 
-    for dirpath, _dirnames, filenames in os.walk(images_dir):
-        rel = Path(dirpath).relative_to(images_dir)
-        parts = rel.parts
+        species = species_dir.name  # Cow, Goat, Sheep, Buffalo
 
-        for fname in sorted(filenames):
-            fpath = Path(dirpath) / fname
+        for fpath in sorted(species_dir.iterdir()):
             if fpath.suffix.lower() not in IMAGE_EXTENSIONS:
                 continue
 
-            # Infer labels from path structure
-            species = parts[0] if len(parts) >= 1 else "unknown"
-            body_part = parts[1] if len(parts) >= 2 else "unknown"
-            sample_id = fpath.stem
+            fname = fpath.stem  # e.g. "CBTS3 (1)"
+            m = SAMPLE_PREFIX_PATTERN.match(fname)
+            sample_group = m.group(1) if m else fname.split()[0] if " " in fname else fname
 
-            external_item_id = f"{species}_{body_part}" if body_part != "unknown" else species
-            seen_items.add(external_item_id)
+            # external_item_id groups images by species + sample group
+            external_item_id = f"{species}_{sample_group}"
 
             records.append({
                 "external_item_id": external_item_id,
-                "external_image_id": f"{external_item_id}_{sample_id}",
+                "external_image_id": f"{species}_{fname}".replace(" ", "_"),
                 "source_file_path": str(fpath.resolve()),
                 "primary_label": species,
-                "secondary_labels": {"body_part": body_part, "sample_id": sample_id},
+                "secondary_labels": {"sample_group": sample_group},
                 "region_code": REGION_CODE,
                 "authenticity_status": "PUBLIC_DATASET_CLASS",
                 "label_confidence": "medium",
@@ -61,9 +62,7 @@ def load_records(local_path: str | Path) -> list[dict]:
 
     if not records:
         raise ValueError(
-            f"No images found in {root}. Expected structure: images/{{species}}/{{body_part}}/{{file}} "
-            "or a flat directory of image files. If the dataset uses a CSV index, "
-            "that format is not yet supported."
+            f"No images found in {root}. Expected: {{Species}}/{{SamplePrefix}} ({{index}}).jpg"
         )
 
     return records

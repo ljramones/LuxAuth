@@ -1,0 +1,30 @@
+# FabricNET Manifest — real local dataset
+#
+# See docs/datasets/fabricnet.md for details.
+
+dataset_name: FabricNET
+dataset_version: external_fabricnet_v0.1.0
+source_type: public_external
+source_url: "https://www.mdpi.com/2071-1050/15/20/15197"
+source_license: "CC BY 4.0 (verify at source)"
+source_citation: >
+  Kuo, C.-F.J.; Kao, C.-Y. FabricNet: A Microscopic Image Dataset of Woven Fabrics
+  for Predicting Textile Physical Properties. Sustainability 2023, 15, 15197.
+commercial_use_allowed: false
+local_path: datasets/external/fabricnet
+label_schema:
+  primary_label: sample_id
+  secondary_labels:
+    - weave
+    - warp_count
+    - weft_count
+    - mass
+splits:
+  strategy: deterministic_by_sample
+  train: 0.6
+  validation: 0.2
+  test: 0.2
+notes: >
+  Public microscopic woven fabric texture dataset (130 samples, 130 images).
+  Flat directory of W001.jpg–W130.jpg with FabricNet_parameters.xlsx metadata.
+  Used for pipeline and texture embedding validation, not luxury authentication.
