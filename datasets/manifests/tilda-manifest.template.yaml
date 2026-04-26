@@ -1,0 +1,20 @@
+dataset_name: TILDA
+dataset_version: external_tilda_v0.1.0
+source_type: public_external
+source_url: ""
+source_license: "Research use (University of Freiburg)"
+source_citation: ""
+commercial_use_allowed: false
+local_path: datasets/external/tilda_CD1+CD2
+label_schema:
+  primary_label: fabric_type
+  secondary_labels:
+    - defect_status
+splits:
+  strategy: deterministic_by_class_or_sample
+  train: 0.6
+  validation: 0.2
+  test: 0.2
+notes: >
+  TILDA Textile Texture Database. Industrial fabric textures with defect annotations.
+  Used for fabric texture and anomaly detection pipeline validation.

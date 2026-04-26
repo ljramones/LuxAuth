@@ -1,0 +1,19 @@
+dataset_name: ChanelMacro
+dataset_version: external_chanel_macro_v0.1.0
+source_type: public_external
+source_url: ""
+source_license: "Review carefully — may contain brand imagery"
+source_citation: ""
+commercial_use_allowed: false
+local_path: datasets/external/dataset-chanel-luxury-bags
+label_schema:
+  primary_label: category
+splits:
+  strategy: deterministic_by_class_or_sample
+  train: 0.6
+  validation: 0.2
+  test: 0.2
+notes: >
+  Chanel Luxury Bags macro product photography. DEFERRED until microscopic texture
+  pipeline is stable. Extra license caution required for brand imagery.
+  Do not use for production authentication claims.

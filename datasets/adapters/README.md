@@ -12,6 +12,12 @@ This directory contains documentation only.
 |---|---|---|---|
 | leadata_adapter | LeaData | EXTERNAL_LEATHER_TEXTURE | Microscopic leather textures |
 | fabricnet_adapter | FabricNET | EXTERNAL_FABRIC_TEXTURE | Microscopic woven fabric textures |
+| tilda_adapter | TILDA | EXTERNAL_FABRIC_TEXTURE | Industrial textile textures with defects |
+| tfd_adapter | TFD | EXTERNAL_FABRIC_TEXTURE | Scanned fabric patches |
+| multiclass_fabric_adapter | MultiClassFabric | EXTERNAL_FABRIC_TEXTURE | Production-line fabric defects |
+| aitex_adapter | AITEX | EXTERNAL_FABRIC_TEXTURE | Industrial fabric defect database |
+| leather_defect_adapter | LeatherDefect | EXTERNAL_LEATHER_TEXTURE | Leather surface defects |
+| chanel_macro_adapter | ChanelMacro | EXTERNAL_LUXURY_MACRO | Macro product photos (deferred) |
 
 ## Adapter Output Format
 

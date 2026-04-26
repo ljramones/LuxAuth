@@ -24,11 +24,15 @@ Public datasets test the **pipeline**, not the **authentication capability**.
 
 | Priority | Dataset | Purpose |
 |---|---|---|
-| 1 | LeaData | Microscopic leather textures — closest to luxury leather grain |
-| 2 | FabricNET | Microscopic woven fabric — closest to canvas/textile analysis |
-| 3 | TILDA/AITEX | Textile defect detection — different task but similar images |
-| 4 | DTD | Describable Textures — general texture classification |
-| 5 | LFFD | Luxury fashion macro images — requires extra license caution |
+| 1 | LeaData V1 | Microscopic leather textures — ingested and tested |
+| 2 | FabricNET | Microscopic woven fabric — ingested and tested |
+| 3 | TILDA | Industrial fabric textures with defects |
+| 4 | Leather Defect Classification | Leather surface anomalies |
+| 5 | LeaData V2 | Scale test (38k microscopic leather images) |
+| 6 | Ten Fabrics Dataset (TFD) | Multi-fabric generalization |
+| 7 | Multi-Class Fabric Defect | Production defect types |
+| 8 | AITEX | High-resolution defect benchmark |
+| 9 | Chanel Luxury Bags | Macro photos — deferred until microscopic pipeline stable |
 
 ## Workflow
 

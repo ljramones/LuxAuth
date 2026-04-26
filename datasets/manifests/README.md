@@ -19,3 +19,9 @@ Each manifest specifies:
 
 - `leadata-manifest.template.yaml` — Microscopic leather textures
 - `fabricnet-manifest.template.yaml` — Microscopic woven fabric textures
+- `tilda-manifest.template.yaml` — Industrial fabric textures with defects
+- `tfd-manifest.template.yaml` — Scanned fabric patches (10 fabric types)
+- `multiclass-fabric-manifest.template.yaml` — Production-line fabric defects
+- `aitex-manifest.template.yaml` — Industrial fabric defect database
+- `leather-defect-manifest.template.yaml` — Leather surface defects
+- `chanel-macro-manifest.template.yaml` — Macro product photos (deferred)

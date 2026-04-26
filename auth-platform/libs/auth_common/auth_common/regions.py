@@ -23,8 +23,10 @@ class RegionCodes:
     # External public dataset regions (not luxury authentication regions)
     EXTERNAL_LEATHER_TEXTURE = "EXTERNAL_LEATHER_TEXTURE"
     EXTERNAL_FABRIC_TEXTURE = "EXTERNAL_FABRIC_TEXTURE"
+    EXTERNAL_LUXURY_MACRO = "EXTERNAL_LUXURY_MACRO"
 
     EXTERNAL = [
         EXTERNAL_LEATHER_TEXTURE,
         EXTERNAL_FABRIC_TEXTURE,
+        EXTERNAL_LUXURY_MACRO,
     ]

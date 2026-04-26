@@ -1,0 +1,18 @@
+dataset_name: AITEX
+dataset_version: external_aitex_v0.1.0
+source_type: public_external
+source_url: ""
+source_license: "Research use"
+source_citation: ""
+commercial_use_allowed: false
+local_path: datasets/external/AITEX-Fabric-Image-Database
+label_schema:
+  primary_label: fabric_type
+splits:
+  strategy: deterministic_by_class_or_sample
+  train: 0.6
+  validation: 0.2
+  test: 0.2
+notes: >
+  AITEX Fabric Image Database. 245 high-resolution images across 7 fabric types.
+  Used for industrial defect detection benchmarking.

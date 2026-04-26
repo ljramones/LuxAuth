@@ -1,0 +1,18 @@
+dataset_name: LeatherDefect
+dataset_version: external_leather_defect_v0.1.0
+source_type: public_external
+source_url: ""
+source_license: ""
+source_citation: ""
+commercial_use_allowed: false
+local_path: datasets/external/Leather-Defect-Classification
+label_schema:
+  primary_label: defect_type
+splits:
+  strategy: deterministic_by_class_or_sample
+  train: 0.6
+  validation: 0.2
+  test: 0.2
+notes: >
+  Leather Defect Classification dataset. Multiple defect classes on leather surfaces.
+  Complements LeaData with anomaly/defect detection testing.

@@ -37,6 +37,12 @@ EMBEDDING_DIM = 128
 ADAPTER_MAP = {
     "LeaData": "external_adapters.leadata_adapter",
     "FabricNET": "external_adapters.fabricnet_adapter",
+    "TILDA": "external_adapters.tilda_adapter",
+    "TFD": "external_adapters.tfd_adapter",
+    "MultiClassFabric": "external_adapters.multiclass_fabric_adapter",
+    "AITEX": "external_adapters.aitex_adapter",
+    "LeatherDefect": "external_adapters.leather_defect_adapter",
+    "ChanelMacro": "external_adapters.chanel_macro_adapter",
 }
 
 SPLITS = ["train", "train", "train", "validation", "test"]
