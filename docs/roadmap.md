@@ -83,6 +83,8 @@
   for the embedding architecture decision
 - See [Patch-Based Region Embedding](../auth-platform/docs/architecture/patch-based-region-embedding.md)
   for the multi-crop / patch embedding design note
+- See [Inspection Region Expansion Plan](roadmaps/inspection-region-expansion-plan.md)
+  for the staged region implementation roadmap
 
 ### AWS Deployment (When Ready)
 - ECS Fargate for services

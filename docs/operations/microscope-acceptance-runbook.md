@@ -48,6 +48,9 @@ Record the returned `calibration_id`.
 
 ## Step 3: Capture Non-Brand Test Targets
 
+See [Inspection Region Taxonomy](../reference/luxury-item-inspection-region-taxonomy.md)
+for the full list of candidate capture regions and tier priorities.
+
 Before capturing real luxury goods, test with neutral objects:
 
 1. **Plain white card** — verify exposure and white balance

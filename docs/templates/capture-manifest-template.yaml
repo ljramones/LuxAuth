@@ -5,6 +5,7 @@
 #
 # See docs/operations/capture-batch-manifest.md for field reference.
 # See docs/operations/microscope-acceptance-runbook.md for the full workflow.
+# See docs/reference/luxury-item-inspection-region-taxonomy.md for region planning.
 
 batch_code: REPLACE_WITH_BATCH_CODE
 source_type: lab_capture  # lab_capture | field_capture | partner_supplied

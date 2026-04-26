@@ -123,7 +123,8 @@ These are improvements we intend to implement, roughly in the order listed.
 - **Small real gold-set protocol** — define a minimum viable capture plan for
   known-authentic and known-counterfeit items. Even 5 authentic + 5 counterfeit items
   with 5 regions each (50 captures per class) would provide a meaningful first real
-  evaluation.
+  evaluation. See [Inspection Region Taxonomy](../reference/luxury-item-inspection-region-taxonomy.md)
+  for Tier 1/2 region priorities and coverage gaps.
 
 ### Product Latency
 - **Result delivery optimization** — the current queue-driven pipeline is correct for
