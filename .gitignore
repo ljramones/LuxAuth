@@ -90,5 +90,14 @@ datasets/**/*.tgz
 datasets/**/*.7z
 datasets/**/*.rar
 
+# Jupyter notebooks
+.ipynb_checkpoints/
+
+# Experiment outputs (regenerable)
+experiments/outputs/*
+!experiments/outputs/.gitkeep
+experiments/reports/*
+!experiments/reports/.gitkeep
+
 # Academic papers / large PDFs (link to DOI instead)
 *.pdf

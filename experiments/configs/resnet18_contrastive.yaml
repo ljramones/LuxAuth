@@ -1,0 +1,34 @@
+experiment_id: resnet18_contrastive_001
+description: "ResNet18 backbone with contrastive loss — lifecycle baseline"
+
+backbone: resnet18
+pretrained: false
+embedding_dim: 128
+loss: contrastive
+margin: 1.0
+
+training:
+  epochs: 10
+  batch_size: 8
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  seed: 42
+
+preprocessing:
+  normalization: center_crop
+  target_size: 512
+  input_size: 224
+  augmentations: true
+
+dataset:
+  version: null  # fill before running
+  split_strategy: by_item
+  train_split: train
+  validation_split: validation
+  test_split: test
+
+region_scope: all
+
+notes: >
+  Baseline learned model experiment. Uses random ResNet18 initialization.
+  Expected to underperform texture_baseline on small datasets.

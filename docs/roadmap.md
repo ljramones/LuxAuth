@@ -85,6 +85,8 @@
   for the multi-crop / patch embedding design note
 - See [Inspection Region Expansion Plan](roadmaps/inspection-region-expansion-plan.md)
   for the staged region implementation roadmap
+- See [Experiment Workbench Plan](roadmaps/experiment-workbench-plan.md)
+  for the Jupyter experiment framework and candidate methods
 
 ### AWS Deployment (When Ready)
 - ECS Fargate for services

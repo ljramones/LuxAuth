@@ -1,0 +1,31 @@
+experiment_id: convnext_supcon_001
+description: "ConvNeXt-Tiny backbone with supervised contrastive loss"
+
+backbone: convnext_tiny
+pretrained: true
+embedding_dim: 256
+loss: supervised_contrastive
+temperature: 0.07
+
+training:
+  epochs: 20
+  batch_size: 8
+  learning_rate: 0.0003
+  weight_decay: 0.0001
+  seed: 42
+
+preprocessing:
+  normalization: center_crop
+  target_size: 512
+  input_size: 224
+  augmentations: true
+
+dataset:
+  version: null
+  split_strategy: by_item
+
+region_scope: all
+
+notes: >
+  Modern CNN backbone with supervised contrastive loss.
+  ConvNeXt may transfer better than ResNet for texture tasks.

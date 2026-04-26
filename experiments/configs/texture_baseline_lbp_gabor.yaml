@@ -1,0 +1,31 @@
+experiment_id: texture_baseline_lbp_gabor_001
+description: "Extended hand-crafted features: histogram + LBP + Gabor"
+
+backbone: none
+pretrained: false
+embedding_dim: 256
+loss: none
+
+features:
+  - grayscale_histogram_32
+  - color_histogram_48
+  - gradient_histogram_32
+  - local_variance_16
+  - lbp_histogram_64
+  - gabor_response_64
+
+preprocessing:
+  normalization: center_crop
+  target_size: 512
+  augmentations: false
+
+dataset:
+  version: null
+  split_strategy: by_item
+
+region_scope: all
+
+notes: >
+  Extended texture_baseline with LBP and Gabor filter features.
+  No neural network — deterministic feature extraction.
+  Compare against texture_baseline_v0.1.0 to measure feature expansion value.

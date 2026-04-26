@@ -1,0 +1,31 @@
+experiment_id: resnet50_contrastive_001
+description: "ResNet50 backbone with contrastive loss"
+
+backbone: resnet50
+pretrained: true
+embedding_dim: 256
+loss: contrastive
+margin: 1.0
+
+training:
+  epochs: 20
+  batch_size: 8
+  learning_rate: 0.0005
+  weight_decay: 0.0001
+  seed: 42
+
+preprocessing:
+  normalization: center_crop
+  target_size: 512
+  input_size: 224
+  augmentations: true
+
+dataset:
+  version: null
+  split_strategy: by_item
+
+region_scope: all
+
+notes: >
+  ImageNet-pretrained ResNet50. Higher capacity than ResNet18.
+  Requires more data for meaningful results.

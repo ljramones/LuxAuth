@@ -1,0 +1,32 @@
+experiment_id: resnet50_arcface_001
+description: "ResNet50 backbone with ArcFace loss"
+
+backbone: resnet50
+pretrained: true
+embedding_dim: 256
+loss: arcface
+arcface_scale: 30.0
+arcface_margin: 0.5
+
+training:
+  epochs: 20
+  batch_size: 8
+  learning_rate: 0.0005
+  weight_decay: 0.0001
+  seed: 42
+
+preprocessing:
+  normalization: center_crop
+  target_size: 512
+  input_size: 224
+  augmentations: true
+
+dataset:
+  version: null
+  split_strategy: by_item
+
+region_scope: all
+
+notes: >
+  ArcFace angular margin loss. Often produces better-separated embeddings
+  than contrastive loss on small datasets. Requires class-level labels.
