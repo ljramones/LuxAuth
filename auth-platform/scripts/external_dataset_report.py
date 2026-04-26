@@ -35,7 +35,7 @@ def run_capture(cmd: list[str], label: str) -> tuple[bool, str]:
     return result.returncode == 0, output
 
 
-def get_dataset_info(cur, dataset_version: str) -> dict | None:
+def get_dataset_info(cur, dataset_version: str, model_version: str = "") -> dict | None:
     """Fetch dataset metadata from DB."""
     cur.execute(
         "SELECT id, dataset_version, source_type, status, description FROM reference_dataset_versions WHERE dataset_version = %s",
@@ -73,14 +73,26 @@ def get_dataset_info(cur, dataset_version: str) -> dict | None:
     )
     auth_statuses = [r[0] for r in cur.fetchall()]
 
-    # Embedding count for this model
+    # Embedding count for selected model
+    if model_version:
+        cur.execute(
+            """SELECT count(*) FROM reference_embeddings re
+               JOIN reference_dataset_members dm ON dm.reference_image_id = re.reference_image_id
+               WHERE dm.dataset_version_id = %s AND re.embedding_model_version = %s""",
+            (ds_id, model_version),
+        )
+        selected_model_embeddings = cur.fetchone()[0]
+    else:
+        selected_model_embeddings = 0
+
+    # Total embeddings across all models
     cur.execute(
         """SELECT count(*) FROM reference_embeddings re
            JOIN reference_dataset_members dm ON dm.reference_image_id = re.reference_image_id
            WHERE dm.dataset_version_id = %s""",
         (ds_id,),
     )
-    embedding_count = cur.fetchone()[0]
+    total_embeddings = cur.fetchone()[0]
 
     return {
         "id": ds_id,
@@ -92,7 +104,8 @@ def get_dataset_info(cur, dataset_version: str) -> dict | None:
         "splits": splits,
         "regions": regions,
         "auth_statuses": auth_statuses,
-        "embedding_count": embedding_count,
+        "embedding_count": selected_model_embeddings,
+        "total_embeddings_all_models": total_embeddings,
     }
 
 
@@ -112,7 +125,7 @@ def main() -> None:
     # Validate dataset exists
     conn = psycopg2.connect(DB_DSN)
     cur = conn.cursor()
-    ds_info = get_dataset_info(cur, args.dataset)
+    ds_info = get_dataset_info(cur, args.dataset, args.model)
     if not ds_info:
         print(f"ERROR: Dataset not found: {args.dataset}")
         sys.exit(1)
@@ -218,7 +231,8 @@ def main() -> None:
         f"| Source type | {ds_info['source_type']} |",
         f"| Total images | {ds_info['total_images']} |",
         f"| Embedding model | `{args.model}` |",
-        f"| Embeddings | {ds_info['embedding_count']} |",
+        f"| Embeddings (selected model) | {ds_info['embedding_count']} |",
+        f"| Embeddings (all models) | {ds_info['total_embeddings_all_models']} |",
         f"| Region codes | {', '.join(ds_info['regions'])} |",
         f"| Label values | {', '.join(ds_info['auth_statuses'])} |",
         "",
@@ -229,6 +243,15 @@ def main() -> None:
     ]
     for split, count in sorted(ds_info["splits"].items()):
         report_lines.append(f"| {split} | {count} |")
+
+    # Embedding coverage
+    total = ds_info["total_images"]
+    selected = ds_info["embedding_count"]
+    pct = (selected / total * 100) if total else 0
+    report_lines.extend([
+        "",
+        f"**Selected model coverage:** {selected}/{total} ({pct:.0f}%)",
+    ])
 
     report_lines.extend([
         "",

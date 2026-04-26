@@ -2,7 +2,7 @@ PYTHON ?= python3
 TEST_PYTHON := $(shell if [ -x .venv/bin/python ]; then echo .venv/bin/python; else command -v $(PYTHON); fi)
 RUFF := $(shell if [ -x .venv/bin/ruff ]; then echo .venv/bin/ruff; else command -v ruff; fi)
 
-.PHONY: up down logs ps init test test-unit test-integration lint lint-fix lint-full format smoke clean health generate-synthetic-data ingest-reference-data smoke-real-images reset-local-data seed-dataset-version run-evaluation evaluation-report train-metric-model reembed-reference-data compare-evaluations analyze-embeddings inspect-neighbors calibrate-thresholds export-projection smoke-capture-api generate-lab-capture-batch validate-capture-batch ingest-capture-batch promote-capture-batch smoke-capture-batch ingest-external-dataset ingest-external-dataset-dry-run validate-external-manifest external-dataset-report
+.PHONY: up down logs ps init test test-unit test-integration lint lint-fix lint-full format smoke clean health generate-synthetic-data ingest-reference-data smoke-real-images reset-local-data seed-dataset-version run-evaluation evaluation-report train-metric-model reembed-reference-data compare-evaluations analyze-embeddings inspect-neighbors calibrate-thresholds export-projection smoke-capture-api generate-lab-capture-batch validate-capture-batch ingest-capture-batch promote-capture-batch smoke-capture-batch ingest-external-dataset ingest-external-dataset-dry-run validate-external-manifest external-dataset-report baseline-feature-experiment baseline-feature-experiment-fabricnet baseline-feature-experiment-leadata compare-baseline-features reembed-fabricnet-v02 reembed-leadata-v02 external-dataset-report-fabricnet-v02 external-dataset-report-leadata-v02
 
 up:
 	docker compose up --build -d
@@ -127,6 +127,31 @@ external-dataset-report:
 	@test -n "$(DATASET)" || (echo "Usage: make external-dataset-report DATASET=<version> MODEL=<version>"; exit 2)
 	@test -n "$(MODEL)" || (echo "Usage: make external-dataset-report DATASET=<version> MODEL=<version>"; exit 2)
 	$(PYTHON) scripts/external_dataset_report.py --dataset $(DATASET) --model $(MODEL) --overwrite
+
+baseline-feature-experiment:
+	@test -n "$(DATASET)" || (echo "Usage: make baseline-feature-experiment DATASET=<version>"; exit 2)
+	$(PYTHON) scripts/run_baseline_feature_experiment.py --dataset $(DATASET)
+
+baseline-feature-experiment-fabricnet:
+	$(PYTHON) scripts/run_baseline_feature_experiment.py --dataset external_fabricnet_v0.1.0
+
+baseline-feature-experiment-leadata:
+	$(PYTHON) scripts/run_baseline_feature_experiment.py --dataset external_leadata_v0.1.0
+
+compare-baseline-features:
+	$(PYTHON) scripts/compare_baseline_feature_experiments.py $(if $(DATASET),--dataset $(DATASET))
+
+reembed-fabricnet-v02:
+	$(MAKE) reembed-reference-data DATASET=external_fabricnet_v0.1.0 MODEL=texture_baseline_v0.2.0
+
+reembed-leadata-v02:
+	$(MAKE) reembed-reference-data DATASET=external_leadata_v0.1.0 MODEL=texture_baseline_v0.2.0
+
+external-dataset-report-fabricnet-v02:
+	$(MAKE) external-dataset-report DATASET=external_fabricnet_v0.1.0 MODEL=texture_baseline_v0.2.0
+
+external-dataset-report-leadata-v02:
+	$(MAKE) external-dataset-report DATASET=external_leadata_v0.1.0 MODEL=texture_baseline_v0.2.0
 
 clean:
 	docker compose down -v --rmi local

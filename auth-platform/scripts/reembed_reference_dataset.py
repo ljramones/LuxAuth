@@ -33,17 +33,18 @@ def get_s3():
                         region_name="us-east-1")
 
 
-def embed_texture_baseline(img_bytes: bytes) -> list[float]:
-    """Use texture_baseline_v0.1.0 embedding."""
+def embed_texture_baseline(img_bytes: bytes, version: str = "v0.1.0") -> list[float]:
+    """Use texture_baseline embedding (v0.1.0 or v0.2.0)."""
     import importlib.util
     spec = importlib.util.spec_from_file_location(
         "imaging", str(Path(__file__).parent.parent / "libs" / "auth_common" / "auth_common" / "imaging.py"))
     imaging = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(imaging)
 
-    from auth_common.imaging import compute_texture_embedding, normalize_image
-    norm = normalize_image(img_bytes)
-    return compute_texture_embedding(norm, dim=EMBEDDING_DIM)
+    norm = imaging.normalize_image(img_bytes)
+    if version == "v0.2.0" or "v0.2" in version:
+        return imaging.compute_texture_embedding_v2(norm, dim=256)
+    return imaging.compute_texture_embedding(norm, dim=EMBEDDING_DIM)
 
 
 def embed_learned_metric(img_bytes: bytes, model: torch.nn.Module) -> list[float]:
@@ -181,7 +182,7 @@ def main():
         if learned_model:
             embedding = embed_learned_metric(img_bytes, learned_model)
         else:
-            embedding = embed_texture_baseline(img_bytes)
+            embedding = embed_texture_baseline(img_bytes, version=args.model.replace("texture_baseline_", ""))
 
         vec_str = "[" + ",".join(f"{v:.8f}" for v in embedding) + "]"
         cur.execute("""

@@ -83,10 +83,12 @@ These are improvements we intend to implement, roughly in the order listed.
   calibrate.
 
 ### Baseline Embedding Improvements
-- **texture_baseline_v0.2.0 experiment** — add Local Binary Pattern (LBP) histogram
-  features and optionally Gabor filter responses to the hand-crafted feature vector.
-  Compare against the current histogram/gradient/local-variance baseline on both
-  synthetic and public external datasets before committing to a dimension change.
+- **texture_baseline_v0.2.0 experiment** — ✅ **Implemented.** LBP histogram (64 bins) +
+  Gabor filter responses (8 orientations × 4 frequencies) added to the v0.1.0 feature
+  set, producing 256-dim embeddings. Cluster separation improved 28–40% on FabricNET and
+  LeaData V1 with 100% NN agreement. See
+  [results](../datasets/baseline-feature-comparison-results.md). v0.2.0 is a candidate
+  enhanced baseline for future learned-model comparison.
 - **Multi-crop / tile embedding experiment** — compare center-crop (current) against
   padded-resize and multi-crop embedding fusion. Microscope framing can place important
   texture detail near image edges, making center-crop fragile. Document which strategy

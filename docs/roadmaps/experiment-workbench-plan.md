@@ -170,9 +170,20 @@ Each notebook follows a standard structure:
 - **06-region-specific-analysis**: Run best model per-region, analyze which regions are hardest, suggest region-specific thresholds.
 - **99-experiment-summary-template**: Markdown-heavy template with sections for hypothesis, setup, results, conclusions, next steps.
 
+## First Implemented Experiment
+
+**texture_baseline_v0.1.0 vs texture_baseline_v0.2.0** on FabricNET and LeaData V1.
+
+v0.2.0 adds LBP histogram (64 bins) and Gabor filter responses (64 values) to the
+v0.1.0 feature set, producing 256-dim embeddings. Cluster separation improved 28–40%
+while NN agreement remained 100%.
+
+These are public external datasets — results validate texture feature behavior, not
+authentication accuracy. See [Baseline Feature Comparison Results](../datasets/baseline-feature-comparison-results.md).
+
 ## 12. Related Documents
 
-- [ML Improvement Roadmap](ml-improvement-roadmap.md) -- overall ML strategy and milestones
-- [ML Technology Explained](../ml-technology-explained.md) -- technical background on embedding, metric learning, and authentication
-- [Dataset Acquisition Strategy](dataset-acquisition-strategy.md) -- how datasets are sourced, governed, and versioned
-- [ADR-0002: Texture Baseline as First Embedding Strategy](../adr/ADR-0002-texture-baseline-embedding.md) -- decision record for the initial hand-crafted feature approach
+- [ML Improvement Roadmap](ml-improvement-roadmap.md)
+- [ML Technology Explained](../ml-technology-explained.md)
+- [Dataset Acquisition Strategy](dataset-acquisition-strategy.md)
+- [Baseline Feature Comparison Results](../datasets/baseline-feature-comparison-results.md)

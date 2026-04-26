@@ -548,6 +548,7 @@ async def query_image(
     from auth_common.imaging import (
         compute_quality_metrics,
         compute_texture_embedding,
+        compute_texture_embedding_v2,
         normalize_image,
         validate_image,
     )
@@ -593,7 +594,9 @@ async def query_image(
     # Normalize and embed
     norm_bytes = normalize_image(content)
 
-    if "texture_baseline" in model_version:
+    if model_version == "texture_baseline_v0.2.0":
+        embedding = compute_texture_embedding_v2(norm_bytes, dim=256)
+    elif "texture_baseline" in model_version:
         embedding = compute_texture_embedding(norm_bytes, dim=128)
     else:
         # Try learned model
@@ -627,7 +630,7 @@ async def query_image(
             with torch.no_grad():
                 embedding = m(tensor).squeeze().tolist()
         except ImportError:
-            embedding = compute_texture_embedding(norm_bytes, dim=128)
+            embedding = compute_texture_embedding_v2(norm_bytes, dim=256) if model_version == "texture_baseline_v0.2.0" else compute_texture_embedding(norm_bytes, dim=128)
 
     emb_norm = float(math.sqrt(sum(x * x for x in embedding)))
 

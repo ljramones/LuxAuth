@@ -9,7 +9,7 @@ except ImportError:
 from auth_common.audit import record_audit_event
 from auth_common.correlation import get_correlation_id
 from auth_common.events import EventEnvelope, EventTypes
-from auth_common.imaging import compute_texture_embedding
+from auth_common.imaging import compute_texture_embedding, compute_texture_embedding_v2
 from auth_common.logging import get_logger
 from auth_common.messaging import send_message
 from auth_common.models import EmbeddingRecord
@@ -67,7 +67,11 @@ def _get_learned_model():
 
 
 def _embed_texture_baseline(norm_bytes: bytes) -> list[float]:
-    return compute_texture_embedding(norm_bytes, dim=EMBEDDING_DIM)
+    return compute_texture_embedding(norm_bytes, dim=128)
+
+
+def _embed_texture_baseline_v2(norm_bytes: bytes) -> list[float]:
+    return compute_texture_embedding_v2(norm_bytes, dim=256)
 
 
 def _embed_learned_metric(norm_bytes: bytes) -> list[float]:
@@ -108,6 +112,8 @@ async def generate_embedding(
     # Select backend
     if "learned_metric" in model_version:
         embedding = _embed_learned_metric(norm_bytes)
+    elif model_version == "texture_baseline_v0.2.0":
+        embedding = _embed_texture_baseline_v2(norm_bytes)
     else:
         embedding = _embed_texture_baseline(norm_bytes)
 

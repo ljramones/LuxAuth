@@ -130,7 +130,7 @@ CREATE TABLE normalized_images (
 CREATE TABLE embeddings (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     image_asset_id UUID NOT NULL UNIQUE,
-    embedding vector(128) NOT NULL,
+    embedding vector NOT NULL,
     embedding_model_version VARCHAR(100),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -737,12 +737,14 @@ INSERT INTO capture_protocol_regions (id, capture_protocol_id, region_code, disp
 CREATE TABLE reference_embeddings (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     reference_image_id UUID NOT NULL REFERENCES reference_images(id),
-    embedding vector(128) NOT NULL,
+    embedding vector NOT NULL,
     embedding_model_version VARCHAR(100),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_reference_embeddings_ref_image ON reference_embeddings(reference_image_id);
-CREATE INDEX idx_reference_embeddings_hnsw ON reference_embeddings USING hnsw (embedding vector_cosine_ops);
+-- Note: HNSW index requires fixed-dimension vectors. Omitted because the column
+-- now accepts variable dimensions (128 for v0.1.0, 256 for v0.2.0). Add
+-- dimension-specific indexes when query patterns are known.
 
 -- Default threshold profile
 INSERT INTO threshold_profiles (id, profile_name, profile_version, embedding_model_version, reference_dataset_version, strong_match_threshold, mismatch_threshold, ood_threshold, counterfeit_similarity_threshold, min_required_regions, require_all_regions, status) VALUES
@@ -788,5 +790,4 @@ BEGIN
     END LOOP;
 END $$;
 
--- Create HNSW index on embeddings for fast similarity search
-CREATE INDEX idx_embeddings_vector_hnsw ON embeddings USING hnsw (embedding vector_cosine_ops);
+-- Note: HNSW index omitted — embeddings column accepts variable dimensions.
