@@ -45,7 +45,7 @@ smoke:
 	$(PYTHON) scripts/run_local_pipeline.py
 
 health:
-	@for port in 8101 8102 8103 8104 8106 8201 8202 8203 8204 8205 8301 8302 8303; do \
+	@for port in 8101 8102 8103 8104 8106 8201 8202 8203 8204 8205 8301 8302 8303 8401; do \
 		printf "%-5s " "$$port"; \
 		curl -sf "http://localhost:$$port/health" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('service','?'), '-', d.get('status','?'))" 2>/dev/null || echo "DOWN"; \
 	done

@@ -7,6 +7,7 @@ from auth_common.correlation import CorrelationMiddleware
 from auth_common.logging import get_logger
 from auth_common.worker import run_worker
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.routes import router
 from app.settings import settings
@@ -20,6 +21,7 @@ app = FastAPI(
     description="Assesses image quality for the luxury authentication pipeline",
 )
 
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 app.add_middleware(CorrelationMiddleware)
 app.include_router(router)
 

@@ -205,6 +205,20 @@ services:
       SERVICE_NAME: region-scoring-service
       SERVICE_PORT: "8205"
 
+  # ─── ML / Research (84xx) ───────────────────────────────────────────
+  ml-diagnostics-service:
+    <<: *service-common
+    build:
+      context: .
+      dockerfile: services/ml-diagnostics-service/Dockerfile
+    container_name: auth-platform-ml-diagnostics-service
+    ports:
+      - "8401:8401"
+    environment:
+      <<: *service-env
+      SERVICE_NAME: ml-diagnostics-service
+      SERVICE_PORT: "8401"
+
   # ─── Decision Layer (83xx) ─────────────────────────────────────────
   decision-service:
     <<: *service-common
