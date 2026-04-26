@@ -181,6 +181,29 @@ while NN agreement remained 100%.
 These are public external datasets — results validate texture feature behavior, not
 authentication accuracy. See [Baseline Feature Comparison Results](../datasets/baseline-feature-comparison-results.md).
 
+## Second Implemented Experiment
+
+**Preprocessing comparison** on FabricNET and LeaData V1 using texture_baseline_v0.2.0.
+
+Six strategies compared:
+- `center_crop_512` — current backend default (baseline)
+- `padded_resize_512` — preserves full field of view with reflect padding
+- `five_crop_512` — center + 4 corner crops, embeddings averaged + L2-normalized
+- `grayscale_center_crop_512` — tests color dependence
+- `clahe_center_crop_512` — CLAHE on luminance channel for local contrast enhancement
+- `tile_224_average` — non-overlapping 224x224 tiles, embeddings averaged + L2-normalized
+
+Center-crop remains the backend default until evidence from real microscopy data
+supports changing it. These results are diagnostic only — they do not prove
+authentication accuracy.
+
+**Runtime note:** Full LeaData preprocessing across all 6 strategies can be slow
+(1,200 images × multi-crop/tile strategies). Use quick/medium Makefile targets
+for iteration:
+- `make preprocessing-experiment-leadata-quick` — 50 images, 3 fast strategies
+- `make preprocessing-experiment-leadata-medium` — 200 images, 3 fast strategies
+- `make preprocessing-experiment-leadata` — full run (overnight if needed)
+
 ## 12. Related Documents
 
 - [ML Improvement Roadmap](ml-improvement-roadmap.md)

@@ -2,7 +2,7 @@ PYTHON ?= python3
 TEST_PYTHON := $(shell if [ -x .venv/bin/python ]; then echo .venv/bin/python; else command -v $(PYTHON); fi)
 RUFF := $(shell if [ -x .venv/bin/ruff ]; then echo .venv/bin/ruff; else command -v ruff; fi)
 
-.PHONY: up down logs ps init test test-unit test-integration lint lint-fix lint-full format smoke clean health generate-synthetic-data ingest-reference-data smoke-real-images reset-local-data seed-dataset-version run-evaluation evaluation-report train-metric-model reembed-reference-data compare-evaluations analyze-embeddings inspect-neighbors calibrate-thresholds export-projection smoke-capture-api generate-lab-capture-batch validate-capture-batch ingest-capture-batch promote-capture-batch smoke-capture-batch ingest-external-dataset ingest-external-dataset-dry-run validate-external-manifest external-dataset-report baseline-feature-experiment baseline-feature-experiment-fabricnet baseline-feature-experiment-leadata compare-baseline-features reembed-fabricnet-v02 reembed-leadata-v02 external-dataset-report-fabricnet-v02 external-dataset-report-leadata-v02
+.PHONY: up down logs ps init test test-unit test-integration lint lint-fix lint-full format smoke clean health generate-synthetic-data ingest-reference-data smoke-real-images reset-local-data seed-dataset-version run-evaluation evaluation-report train-metric-model reembed-reference-data compare-evaluations analyze-embeddings inspect-neighbors calibrate-thresholds export-projection smoke-capture-api generate-lab-capture-batch validate-capture-batch ingest-capture-batch promote-capture-batch smoke-capture-batch ingest-external-dataset ingest-external-dataset-dry-run validate-external-manifest external-dataset-report baseline-feature-experiment baseline-feature-experiment-fabricnet baseline-feature-experiment-leadata compare-baseline-features reembed-fabricnet-v02 reembed-leadata-v02 external-dataset-report-fabricnet-v02 external-dataset-report-leadata-v02 preprocessing-experiment preprocessing-experiment-fabricnet preprocessing-experiment-leadata preprocessing-experiment-leadata-quick preprocessing-experiment-leadata-medium compare-preprocessing-experiments
 
 up:
 	docker compose up --build -d
@@ -152,6 +152,25 @@ external-dataset-report-fabricnet-v02:
 
 external-dataset-report-leadata-v02:
 	$(MAKE) external-dataset-report DATASET=external_leadata_v0.1.0 MODEL=texture_baseline_v0.2.0
+
+preprocessing-experiment:
+	@test -n "$(DATASET)" || (echo "Usage: make preprocessing-experiment DATASET=<version>"; exit 2)
+	$(PYTHON) scripts/run_preprocessing_experiment.py --dataset $(DATASET)
+
+preprocessing-experiment-fabricnet:
+	$(PYTHON) scripts/run_preprocessing_experiment.py --dataset external_fabricnet_v0.1.0 --extractor texture_baseline_v0.2.0
+
+preprocessing-experiment-leadata:
+	$(PYTHON) scripts/run_preprocessing_experiment.py --dataset external_leadata_v0.1.0 --extractor texture_baseline_v0.2.0
+
+preprocessing-experiment-leadata-quick:
+	$(PYTHON) scripts/run_preprocessing_experiment.py --dataset external_leadata_v0.1.0 --extractor texture_baseline_v0.2.0 --limit 50 --strategies center_crop_512,padded_resize_512,clahe_center_crop_512
+
+preprocessing-experiment-leadata-medium:
+	$(PYTHON) scripts/run_preprocessing_experiment.py --dataset external_leadata_v0.1.0 --extractor texture_baseline_v0.2.0 --limit 200 --strategies center_crop_512,padded_resize_512,clahe_center_crop_512
+
+compare-preprocessing-experiments:
+	$(PYTHON) scripts/compare_preprocessing_experiments.py $(if $(DATASET),--dataset $(DATASET))
 
 clean:
 	docker compose down -v --rmi local

@@ -89,10 +89,11 @@ These are improvements we intend to implement, roughly in the order listed.
   LeaData V1 with 100% NN agreement. See
   [results](../datasets/baseline-feature-comparison-results.md). v0.2.0 is a candidate
   enhanced baseline for future learned-model comparison.
-- **Multi-crop / tile embedding experiment** — compare center-crop (current) against
-  padded-resize and multi-crop embedding fusion. Microscope framing can place important
-  texture detail near image edges, making center-crop fragile. Document which strategy
-  produces the most consistent nearest-neighbor behavior.
+- **Preprocessing comparison experiment** — ✅ **Implemented.** Six strategies compared:
+  center-crop (baseline), padded-resize, five-crop, grayscale, CLAHE, and tile-based
+  embedding. Experiment runner, comparison script, and notebook created. Center-crop
+  remains the backend default until evidence from real microscopy data supports a change.
+  Patch/tiling strategy remains experimental pending results on real microscope captures.
 
 ### OOD Detection
 - **Improved out-of-distribution scoring** — the current OOD score is `1 - max_similarity`,
@@ -177,7 +178,7 @@ infrastructure, real traffic, or scale that does not yet exist.
 **Goal:** Extract maximum diagnostic value from FabricNET and LeaData before real data.
 
 - Run FabricNET and LeaData with texture_baseline_v0.1.0 (done)
-- Compare center-crop vs. multi-crop normalization on both datasets
+- Compare center-crop vs. multi-crop normalization on both datasets (✅ implemented as preprocessing comparison experiment)
 - Compare 128-dim vs. 256-dim baseline embeddings
 - Generate per-class (species / fabric type) cluster separation reports
 - Document which texture features are most discriminative for each dataset
