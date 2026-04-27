@@ -193,9 +193,11 @@ Six strategies compared:
 - `clahe_center_crop_512` — CLAHE on luminance channel for local contrast enhancement
 - `tile_224_average` — non-overlapping 224x224 tiles, embeddings averaged + L2-normalized
 
-Center-crop remains the backend default until evidence from real microscopy data
-supports changing it. These results are diagnostic only — they do not prove
-authentication accuracy.
+CLAHE consistently produced the best cluster separation across both datasets
+(+4.9% on FabricNET, +2.9% on LeaData medium). Center-crop remains the backend
+default until evidence from real microscopy data supports changing it. These
+results are diagnostic only — they do not prove authentication accuracy. See
+[Preprocessing Comparison Results](../datasets/preprocessing-comparison-results.md).
 
 **Runtime note:** Full LeaData preprocessing across all 6 strategies can be slow
 (1,200 images × multi-crop/tile strategies). Use quick/medium Makefile targets
@@ -204,9 +206,50 @@ for iteration:
 - `make preprocessing-experiment-leadata-medium` — 200 images, 3 fast strategies
 - `make preprocessing-experiment-leadata` — full run (overnight if needed)
 
+## Third Implemented Experiment
+
+**Region-specific analysis scaffold** for coverage, readiness, and per-region
+embedding diagnostics.
+
+- Computes per-region image/item counts, split distribution, label distribution,
+  embedding coverage, and readiness levels (no_data / sparse / diagnostic_only /
+  evaluation_ready / training_candidate).
+- Computes per-region embedding metrics (cluster separation, NN agreement, recall@K)
+  where sufficient data exists.
+- Includes minimal region taxonomy registry based on the
+  [Inspection Region Taxonomy](../reference/luxury-item-inspection-region-taxonomy.md).
+- Flags external-only regions, unknown region codes, and sparse coverage.
+
+This phase is mostly structural — true region-specific conclusions require real
+microscope/gold-set capture data with multiple regions per item. Current public
+external datasets use single EXTERNAL_* region codes, limiting per-region
+comparison within those datasets. See
+[Region-Specific Analysis Results](../datasets/region-specific-analysis-results.md).
+
+## Fourth Implemented Experiment
+
+**OOD / out-of-distribution scoring experiment** using FabricNET and LeaData as
+cross-domain ID/OOD pairs.
+
+Six scoring methods compared:
+- `max_similarity` — current simple proxy (1 - max cosine similarity)
+- `mean_topk` — average top-K similarities, more robust to single-neighbor noise
+- `similarity_gap` — top-1 minus top-2, measures ambiguity
+- `knn_density` — mean similarity to k nearest neighbors as density proxy
+- `mahalanobis` — statistical distance to reference distribution
+- `lof` — local outlier factor approximation using kNN density ratios
+
+This experiment comes before learned neural models because understanding OOD
+behavior with hand-crafted features establishes a diagnostic baseline. The
+current query-image UI uses simple similarity-based interpretation bands;
+dedicated OOD scoring is experimental and not promoted to the UI until validated
+on real data.
+
 ## 12. Related Documents
 
 - [ML Improvement Roadmap](ml-improvement-roadmap.md)
 - [ML Technology Explained](../ml-technology-explained.md)
 - [Dataset Acquisition Strategy](dataset-acquisition-strategy.md)
 - [Baseline Feature Comparison Results](../datasets/baseline-feature-comparison-results.md)
+- [Preprocessing Comparison Results](../datasets/preprocessing-comparison-results.md)
+- [Region-Specific Analysis Results](../datasets/region-specific-analysis-results.md)

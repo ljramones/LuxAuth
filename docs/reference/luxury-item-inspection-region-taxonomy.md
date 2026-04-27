@@ -409,6 +409,14 @@ for schema and future decision behavior.
 
 ---
 
+## Tooling
+
+The region analysis framework (`auth-platform/ml/experiments/region_analysis.py`)
+uses this taxonomy as its conceptual source for a minimal in-code region metadata
+registry. The current registry hardcodes Tier 1 and EXTERNAL_* region codes. A
+future formal region registry (loaded from config or DB) should replace this
+minimal code map as the system grows.
+
 ## 12. Related Documents
 
 - [Item Condition Vocabulary](item-condition-vocabulary.md)

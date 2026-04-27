@@ -89,10 +89,12 @@ These are improvements we intend to implement, roughly in the order listed.
   LeaData V1 with 100% NN agreement. See
   [results](../datasets/baseline-feature-comparison-results.md). v0.2.0 is a candidate
   enhanced baseline for future learned-model comparison.
-- **Preprocessing comparison experiment** — ✅ **Implemented.** Six strategies compared:
-  center-crop (baseline), padded-resize, five-crop, grayscale, CLAHE, and tile-based
-  embedding. Experiment runner, comparison script, and notebook created. Center-crop
-  remains the backend default until evidence from real microscopy data supports a change.
+- **Preprocessing comparison experiment** — ✅ **Implemented and run.** Six strategies
+  compared on FabricNET (full) and LeaData (medium 200-image subset). CLAHE produced
+  the best cluster separation on both datasets (+4.9% FabricNET, +2.9% LeaData).
+  Center-crop remains the backend default — CLAHE and padded-resize are candidates
+  for microscope acceptance testing. See
+  [Preprocessing Comparison Results](../datasets/preprocessing-comparison-results.md).
   Patch/tiling strategy remains experimental pending results on real microscope captures.
 
 ### OOD Detection
@@ -155,7 +157,7 @@ infrastructure, real traffic, or scale that does not yet exist.
 | Model drift monitoring | Requires production traffic and baseline performance metrics to detect drift against. |
 | Per-brand/material/region threshold calibration | Requires enough labeled real data per category. Current global thresholds are development defaults. |
 | Patch-based region embedding | Design needed before implementation; see [architecture note](../../auth-platform/docs/architecture/patch-based-region-embedding.md). |
-| Explicit OOD detector (Mahalanobis, kNN density) | Requires large enough reference library for meaningful density estimates. Current `1 - max_similarity` is a proxy only. |
+| Explicit OOD detector (Mahalanobis, kNN density) | ✅ **Experiment framework implemented.** Six OOD scoring methods compared on FabricNET/LeaData cross-domain pairs. Current production query-image UI still uses simple similarity-based interpretation bands. Dedicated OOD scoring remains experimental until validated on real microscope/gold-set data. |
 
 ---
 

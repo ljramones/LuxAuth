@@ -268,6 +268,24 @@ gold-set data.
 
 ---
 
+## Tooling: Region Analysis Framework
+
+A region analysis framework (`ml/experiments/region_analysis.py`) supports
+coverage and readiness diagnostics per dataset:
+
+- Per-region image/item counts, split and label distributions
+- Readiness scoring: no_data / sparse / diagnostic_only / evaluation_ready /
+  training_candidate (based on image count — a rough proxy only)
+- Per-region embedding metrics where sufficient data exists
+- External-only region flagging, unknown region code warnings
+
+This framework will support future Data Explorer coverage/readiness views.
+Readiness scores are diagnostic only — they do not substitute for label quality,
+item diversity, split integrity, or provenance checks.
+
+Initial public external region-analysis results are documented in
+[Region-Specific Analysis Results](../datasets/region-specific-analysis-results.md).
+
 ## 13. Related Documents
 
 - [Inspection Region Taxonomy](../reference/luxury-item-inspection-region-taxonomy.md)
