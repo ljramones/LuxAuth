@@ -40,3 +40,9 @@ make notebook           # start JupyterLab
 ```
 
 Then select **Kernel > Change Kernel > LuxAuth auth-platform** in Jupyter.
+
+## Which Notebook to Run Next
+
+Use [EXECUTION_PLAN.md](EXECUTION_PLAN.md) to decide which notebook to run.
+It gives the recommended order, status (ready / completed / future), required
+inputs, and links to curated result docs.

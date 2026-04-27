@@ -92,7 +92,9 @@ def main():
     print(f"Model:      {config.model_name}_{config.model_version}")
     print(f"Backbone:   {config.backbone} (pretrained={config.pretrained})")
     print(f"Emb dim:    {config.embedding_dim}")
-    print(f"Loss:       {config.loss} (margin={config.margin})")
+    from experiments.losses import BATCH_LOSSES, get_loss_name
+    loss_name = get_loss_name(config)
+    print(f"Loss:       {loss_name} (config.loss={config.loss})")
     print(f"Epochs:     {config.epochs}")
     print(f"Batch:      {config.batch_size}")
     print(f"LR:         {config.learning_rate}")
@@ -160,22 +162,32 @@ def main():
     val_ds = ExperimentImageDataset(val_records, val_labels, label_to_idx, eval_transform) if val_records else None
     test_ds = ExperimentImageDataset(test_records, test_labels, label_to_idx, eval_transform) if test_records else None
 
-    # Build pair sampler
-    pairs_per_epoch = max(100, len(train_records) * 3)
-    train_pairs = ContrastivePairSampler(train_ds, pairs_per_epoch=pairs_per_epoch, seed=config.seed)
-    print(f"  Train pairs: {len(train_pairs)}")
+    # Build dataloader based on loss type
+    use_batch_mode = loss_name in BATCH_LOSSES
+    if use_batch_mode:
+        print(f"  Using batch mode for {loss_name}")
+        train_loader = torch.utils.data.DataLoader(
+            train_ds, batch_size=config.batch_size, shuffle=True, drop_last=True,
+        )
+        val_loader = torch.utils.data.DataLoader(
+            val_ds, batch_size=config.batch_size, drop_last=True,
+        ) if val_ds and len(val_ds) >= 4 else None
+    else:
+        pairs_per_epoch = max(100, len(train_records) * 3)
+        train_pairs = ContrastivePairSampler(train_ds, pairs_per_epoch=pairs_per_epoch, seed=config.seed)
+        print(f"  Train pairs: {len(train_pairs)}")
 
-    if len(train_pairs) == 0:
-        print("ERROR: Could not generate any contrastive pairs.")
-        print("  Check label strategy and class distribution.")
-        sys.exit(1)
+        if len(train_pairs) == 0:
+            print("ERROR: Could not generate any contrastive pairs.")
+            print("  Check label strategy and class distribution.")
+            sys.exit(1)
 
-    val_pairs = None
-    if val_ds and len(val_ds) >= 4:
-        val_pairs = ContrastivePairSampler(val_ds, pairs_per_epoch=max(50, len(val_records) * 2), seed=config.seed + 1)
+        val_pairs = None
+        if val_ds and len(val_ds) >= 4:
+            val_pairs = ContrastivePairSampler(val_ds, pairs_per_epoch=max(50, len(val_records) * 2), seed=config.seed + 1)
 
-    train_loader = torch.utils.data.DataLoader(train_pairs, batch_size=config.batch_size, shuffle=True)
-    val_loader = torch.utils.data.DataLoader(val_pairs, batch_size=config.batch_size) if val_pairs else None
+        train_loader = torch.utils.data.DataLoader(train_pairs, batch_size=config.batch_size, shuffle=True)
+        val_loader = torch.utils.data.DataLoader(val_pairs, batch_size=config.batch_size) if val_pairs else None
 
     # Create model
     print("\nCreating model...")
@@ -191,7 +203,8 @@ def main():
     # Train
     print("\nTraining...")
     t0 = time.monotonic()
-    training_metrics = train_model(model, train_loader, val_loader, config, device)
+    loss_mode = "batch" if use_batch_mode else "pair"
+    training_metrics = train_model(model, train_loader, val_loader, config, device, loss_mode)
     train_time = time.monotonic() - t0
     print(f"  Training time: {train_time:.1f}s")
 
@@ -212,7 +225,7 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
     now = datetime.now(UTC)
     ds_tag = config.dataset_version.replace(".", "_")
-    prefix = f"{ds_tag}__learned_metric_{config.model_version.replace('.', '_')}"
+    prefix = f"{ds_tag}__learned_metric_{config.model_version.replace('.', '_')}__{loss_name}"
 
     # Training metrics
     training_path = output_dir / f"{prefix}__training_metrics.json"
@@ -232,7 +245,8 @@ def main():
         "backbone": config.backbone,
         "pretrained": config.pretrained,
         "embedding_dim": config.embedding_dim,
-        "loss": config.loss,
+        "loss": loss_name,
+        "loss_config": config.loss if isinstance(config.loss, dict) else {"name": config.loss},
         "epochs": config.epochs,
         "batch_size": config.batch_size,
         "learning_rate": config.learning_rate,

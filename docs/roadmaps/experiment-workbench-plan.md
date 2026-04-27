@@ -145,6 +145,8 @@ notes: <free-form observations>
 8. **Do not import notebooks.** If code is reusable, move it to `auth-platform/ml/`.
 9. **Keep notebooks self-contained.** Each notebook should run top-to-bottom without external state.
 10. **Clear outputs before committing.** Notebook outputs are regenerable and should not be in version control.
+11. **Follow the execution plan.** See [Notebook Execution Plan](../../notebooks/EXECUTION_PLAN.md)
+    for recommended run order, status, and required inputs.
 
 ## 11. Initial Notebook Contents
 
@@ -264,6 +266,16 @@ and R@1 but cluster separation (0.5609) was lower than texture_baseline_v0.2.0
 (0.9418). Hand-crafted LBP+Gabor features remain strongest on public texture
 data. Next steps: supervised contrastive loss, frozen backbone, hard-negative
 mining. See [learned_metric_v0.2.0 Results](../datasets/learned-metric-v02-results.md).
+
+## Sixth Implemented Experiment
+
+**Loss function comparison** on LeaData V1. Compares contrastive (Phase 5
+baseline), supervised contrastive (SupCon), and batch-hard triplet losses while
+holding backbone, embedding dimension, and preprocessing constant.
+
+This comes before backbone comparison because the loss function determines how
+the embedding space is shaped. A better loss may close the gap with
+texture_baseline_v0.2.0 without requiring a larger backbone.
 
 ## 12. Related Documents
 

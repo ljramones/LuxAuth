@@ -1,4 +1,4 @@
-.PHONY: backend-up backend-stop backend-health workbench dev check test lint notebook-deps notebook-kernel notebook
+.PHONY: backend-up backend-stop backend-health workbench dev check test lint notebook-deps notebook-kernel notebook notebook-plan
 
 backend-up:
 	./scripts/start-backend.sh
@@ -33,3 +33,6 @@ notebook-kernel:
 
 notebook:
 	cd auth-platform && .venv/bin/jupyter lab --notebook-dir=../notebooks
+
+notebook-plan:
+	@cat notebooks/EXECUTION_PLAN.md

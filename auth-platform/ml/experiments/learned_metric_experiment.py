@@ -68,8 +68,10 @@ def validate_config(config: LMExperimentConfig) -> list[str]:
     warnings = []
     if config.backbone not in ("resnet18", "resnet50"):
         warnings.append(f"Backbone '{config.backbone}' may not be supported yet")
-    if config.loss not in ("contrastive",):
-        warnings.append(f"Loss '{config.loss}' may not be implemented yet")
+    from experiments.losses import LOSS_REGISTRY, get_loss_name
+    loss_name = get_loss_name(config)
+    if loss_name not in LOSS_REGISTRY:
+        warnings.append(f"Loss '{loss_name}' may not be implemented yet")
     if not config.dataset_version:
         warnings.append("No dataset_version specified")
     return warnings
@@ -319,11 +321,17 @@ def train_model(
     val_loader: DataLoader | None,
     config: LMExperimentConfig,
     device: torch.device,
+    loss_mode: str = "pair",
 ) -> dict:
-    """Train model and return metrics."""
-    from metric_learning.losses import ContrastiveLoss
+    """Train model and return metrics.
 
-    criterion = ContrastiveLoss(margin=config.margin)
+    loss_mode controls how the dataloader is consumed:
+    - "pair": loader yields (img1, img2, label) for contrastive/triplet
+    - "batch": loader yields (imgs, labels, meta) for supcon/batch-hard
+    """
+    from experiments.losses import create_loss
+
+    criterion = create_loss(config)
     optimizer = torch.optim.Adam(
         model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay,
     )
@@ -337,16 +345,27 @@ def train_model(
         epoch_loss = 0.0
         n_batches = 0
 
-        for img1, img2, labels in train_loader:
-            img1, img2, labels = img1.to(device), img2.to(device), labels.to(device)
-            optimizer.zero_grad()
-            emb1 = model(img1)
-            emb2 = model(img2)
-            loss = criterion(emb1, emb2, labels)
-            loss.backward()
-            optimizer.step()
-            epoch_loss += loss.item()
-            n_batches += 1
+        if loss_mode == "batch":
+            for imgs, labels, _meta in train_loader:
+                imgs, labels = imgs.to(device), labels.to(device)
+                optimizer.zero_grad()
+                embs = model(imgs)
+                loss = criterion(embs, labels)
+                loss.backward()
+                optimizer.step()
+                epoch_loss += loss.item()
+                n_batches += 1
+        else:
+            for img1, img2, labels in train_loader:
+                img1, img2, labels = img1.to(device), img2.to(device), labels.to(device)
+                optimizer.zero_grad()
+                emb1 = model(img1)
+                emb2 = model(img2)
+                loss = criterion(emb1, emb2, labels)
+                loss.backward()
+                optimizer.step()
+                epoch_loss += loss.item()
+                n_batches += 1
 
         avg_train = epoch_loss / max(n_batches, 1)
         train_losses.append(avg_train)
@@ -358,13 +377,21 @@ def train_model(
             val_loss = 0.0
             n_val = 0
             with torch.no_grad():
-                for img1, img2, labels in val_loader:
-                    img1, img2, labels = img1.to(device), img2.to(device), labels.to(device)
-                    emb1 = model(img1)
-                    emb2 = model(img2)
-                    loss = criterion(emb1, emb2, labels)
-                    val_loss += loss.item()
-                    n_val += 1
+                if loss_mode == "batch":
+                    for imgs, labels, _meta in val_loader:
+                        imgs, labels = imgs.to(device), labels.to(device)
+                        embs = model(imgs)
+                        loss = criterion(embs, labels)
+                        val_loss += loss.item()
+                        n_val += 1
+                else:
+                    for img1, img2, labels in val_loader:
+                        img1, img2, labels = img1.to(device), img2.to(device), labels.to(device)
+                        emb1 = model(img1)
+                        emb2 = model(img2)
+                        loss = criterion(emb1, emb2, labels)
+                        val_loss += loss.item()
+                        n_val += 1
             avg_val = val_loss / max(n_val, 1)
             val_losses.append(avg_val)
 

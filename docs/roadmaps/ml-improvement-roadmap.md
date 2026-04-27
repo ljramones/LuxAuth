@@ -55,10 +55,13 @@ These are improvements we intend to implement, roughly in the order listed.
   instead of random initialization. This should give the learned model a meaningful
   feature base even with small datasets. Requires internet access for weight download
   (or local weight cache).
-- **Better metric-learning losses** — experiment with ArcFace, CosFace, or
-  Multi-Similarity Loss as alternatives or supplements to contrastive loss. These
-  objectives often produce better-separated embedding spaces on small datasets.
-- **Hard/semi-hard negative mining** — the current pair generation is random. Mining
+- **Better metric-learning losses** — ✅ **Loss comparison framework implemented.**
+  Supervised contrastive (SupCon) and batch-hard triplet losses added alongside
+  contrastive baseline. Comparison runner and configs exist for LeaData V1.
+  ArcFace/CosFace deferred until basic loss comparison results are analyzed.
+  texture_baseline_v0.2.0 remains current champion until a learned model proves
+  otherwise on real data.
+- **Hard/semi-hard negative mining** — ✅ **Batch-hard triplet implemented.** Mining
   hard negatives (closest wrong-class examples) forces the model to learn finer
   distinctions. Semi-hard mining is safer for small datasets.
 - **Stronger augmentations** — add random erasing, affine transforms, and microscopy-aware
