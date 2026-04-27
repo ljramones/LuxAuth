@@ -55,12 +55,12 @@ These are improvements we intend to implement, roughly in the order listed.
   instead of random initialization. This should give the learned model a meaningful
   feature base even with small datasets. Requires internet access for weight download
   (or local weight cache).
-- **Better metric-learning losses** — ✅ **Loss comparison framework implemented.**
-  Supervised contrastive (SupCon) and batch-hard triplet losses added alongside
-  contrastive baseline. Comparison runner and configs exist for LeaData V1.
-  ArcFace/CosFace deferred until basic loss comparison results are analyzed.
-  texture_baseline_v0.2.0 remains current champion until a learned model proves
-  otherwise on real data.
+- **Better metric-learning losses** — ✅ **Medium comparison completed.** Contrastive
+  (0.7258) and batch-hard triplet (0.7127) are competitive at 5 epochs / 300
+  images; both exceed texture_baseline_v0.1.0 (0.6730) but remain below v0.2.0
+  (0.9418). SupCon (0.6483) trails but improved 3× from quick run. Next step is
+  label strategy experiments, not more loss functions. See
+  [results](../datasets/loss-function-comparison-results.md).
 - **Hard/semi-hard negative mining** — ✅ **Batch-hard triplet implemented.** Mining
   hard negatives (closest wrong-class examples) forces the model to learn finer
   distinctions. Semi-hard mining is safer for small datasets.

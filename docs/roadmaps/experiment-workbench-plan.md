@@ -274,8 +274,11 @@ baseline), supervised contrastive (SupCon), and batch-hard triplet losses while
 holding backbone, embedding dimension, and preprocessing constant.
 
 This comes before backbone comparison because the loss function determines how
-the embedding space is shaped. A better loss may close the gap with
-texture_baseline_v0.2.0 without requiring a larger backbone.
+the embedding space is shaped. Medium run (5 epochs, 300 images) shows
+contrastive (0.7258) and batch-hard triplet (0.7127) are competitive; both
+exceed texture_baseline_v0.1.0 but remain below v0.2.0 (0.9418). Next
+experiment should test label strategy, not backbone. See
+[Loss Function Comparison Results](../datasets/loss-function-comparison-results.md).
 
 ## 12. Related Documents
 
@@ -286,3 +289,4 @@ texture_baseline_v0.2.0 without requiring a larger backbone.
 - [Preprocessing Comparison Results](../datasets/preprocessing-comparison-results.md)
 - [Region-Specific Analysis Results](../datasets/region-specific-analysis-results.md)
 - [learned_metric_v0.2.0 Results](../datasets/learned-metric-v02-results.md)
+- [Loss Function Comparison Results](../datasets/loss-function-comparison-results.md)
