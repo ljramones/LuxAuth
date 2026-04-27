@@ -2,7 +2,7 @@ PYTHON ?= python3
 TEST_PYTHON := $(shell if [ -x .venv/bin/python ]; then echo .venv/bin/python; else command -v $(PYTHON); fi)
 RUFF := $(shell if [ -x .venv/bin/ruff ]; then echo .venv/bin/ruff; else command -v ruff; fi)
 
-.PHONY: up down logs ps init test test-unit test-integration lint lint-fix lint-full format smoke clean health generate-synthetic-data ingest-reference-data smoke-real-images reset-local-data seed-dataset-version run-evaluation evaluation-report train-metric-model reembed-reference-data compare-evaluations analyze-embeddings inspect-neighbors calibrate-thresholds export-projection smoke-capture-api generate-lab-capture-batch validate-capture-batch ingest-capture-batch promote-capture-batch smoke-capture-batch ingest-external-dataset ingest-external-dataset-dry-run validate-external-manifest external-dataset-report baseline-feature-experiment baseline-feature-experiment-fabricnet baseline-feature-experiment-leadata compare-baseline-features reembed-fabricnet-v02 reembed-leadata-v02 external-dataset-report-fabricnet-v02 external-dataset-report-leadata-v02 preprocessing-experiment preprocessing-experiment-fabricnet preprocessing-experiment-leadata preprocessing-experiment-leadata-quick preprocessing-experiment-leadata-medium compare-preprocessing-experiments region-analysis region-analysis-smoke region-analysis-fabricnet region-analysis-leadata compare-region-analysis ood-experiment-fabricnet-vs-leadata ood-experiment-leadata-vs-fabricnet compare-ood-experiments
+.PHONY: up down logs ps init test test-unit test-integration lint lint-fix lint-full format smoke clean health generate-synthetic-data ingest-reference-data smoke-real-images reset-local-data seed-dataset-version run-evaluation evaluation-report train-metric-model reembed-reference-data compare-evaluations analyze-embeddings inspect-neighbors calibrate-thresholds export-projection smoke-capture-api generate-lab-capture-batch validate-capture-batch ingest-capture-batch promote-capture-batch smoke-capture-batch ingest-external-dataset ingest-external-dataset-dry-run validate-external-manifest external-dataset-report baseline-feature-experiment baseline-feature-experiment-fabricnet baseline-feature-experiment-leadata compare-baseline-features reembed-fabricnet-v02 reembed-leadata-v02 external-dataset-report-fabricnet-v02 external-dataset-report-leadata-v02 preprocessing-experiment preprocessing-experiment-fabricnet preprocessing-experiment-leadata preprocessing-experiment-leadata-quick preprocessing-experiment-leadata-medium compare-preprocessing-experiments region-analysis region-analysis-smoke region-analysis-fabricnet region-analysis-leadata compare-region-analysis ood-experiment-fabricnet-vs-leadata ood-experiment-leadata-vs-fabricnet compare-ood-experiments learned-metric-experiment learned-metric-experiment-leadata-v02 learned-metric-experiment-fabricnet-v02 learned-metric-experiment-leadata-quick compare-learned-vs-baseline
 
 up:
 	docker compose up --build -d
@@ -197,6 +197,22 @@ ood-experiment-leadata-vs-fabricnet:
 
 compare-ood-experiments:
 	$(PYTHON) scripts/compare_ood_experiments.py --latest
+
+learned-metric-experiment:
+	@test -n "$(CONFIG)" || (echo "Usage: make learned-metric-experiment CONFIG=<path>"; exit 2)
+	$(PYTHON) scripts/run_learned_metric_experiment.py --config $(CONFIG)
+
+learned-metric-experiment-leadata-v02:
+	$(PYTHON) scripts/run_learned_metric_experiment.py --config ../experiments/configs/learned_metric_v0.2.0_leadata.yaml
+
+learned-metric-experiment-fabricnet-v02:
+	$(PYTHON) scripts/run_learned_metric_experiment.py --config ../experiments/configs/learned_metric_v0.2.0_fabricnet.yaml
+
+learned-metric-experiment-leadata-quick:
+	$(PYTHON) scripts/run_learned_metric_experiment.py --config ../experiments/configs/learned_metric_v0.2.0_leadata.yaml --epochs 2 --limit 100
+
+compare-learned-vs-baseline:
+	$(PYTHON) scripts/compare_learned_vs_baseline.py $(if $(DATASET),--dataset $(DATASET))
 
 clean:
 	docker compose down -v --rmi local

@@ -1,0 +1,50 @@
+# learned_metric_v0.2.0 — base experiment config
+#
+# First bounded learned metric experiment comparing against texture_baseline_v0.2.0.
+# Results are diagnostic only — public texture datasets do not prove luxury authentication.
+
+model_name: learned_metric
+model_version: v0.2.0
+
+backbone: resnet18
+pretrained: true
+embedding_dim: 256
+input_size: 224
+
+loss: contrastive
+margin: 1.0
+
+epochs: 20
+batch_size: 16
+learning_rate: 0.0005
+weight_decay: 0.0001
+seed: 42
+
+# Label strategy: how to derive class labels from dataset records.
+# Options: authenticity_status, external_item_id, species, sample_group, region_code
+label_strategy: external_item_id
+
+# Augmentations
+augmentations:
+  random_resized_crop: true
+  horizontal_flip: true
+  vertical_flip: false
+  rotation_degrees: 15
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.1
+  random_erasing: 0.1
+  gaussian_blur: false
+
+# Split policy
+split_policy:
+  train: train
+  validation: validation
+  test: test
+  leakage_check_field: reference_item_id
+
+notes: >
+  First bounded learned metric experiment. Compares pretrained ResNet18 with
+  contrastive loss against texture_baseline_v0.2.0 on public external datasets.
+  Results are diagnostic only.

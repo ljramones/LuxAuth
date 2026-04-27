@@ -1,0 +1,52 @@
+# learned_metric_v0.2.0 — FabricNET config
+#
+# FabricNET has 130 images — one per fabric sample. Each image maps to a unique
+# external_item_id, making supervised classification-style training difficult
+# (130 classes with 1 image each).
+#
+# FabricNET is primarily useful for evaluation/projection, not supervised training.
+# This config is included for completeness but may not produce meaningful training.
+
+model_name: learned_metric
+model_version: v0.2.0
+
+dataset_version: external_fabricnet_v0.1.0
+
+backbone: resnet18
+pretrained: true
+embedding_dim: 256
+input_size: 224
+
+loss: contrastive
+margin: 1.0
+
+epochs: 10
+batch_size: 8
+learning_rate: 0.0005
+weight_decay: 0.0001
+seed: 42
+
+# FabricNET: each image is a unique sample. Training with external_item_id
+# produces single-image classes. This may not be useful for contrastive learning.
+label_strategy: external_item_id
+
+augmentations:
+  random_resized_crop: true
+  horizontal_flip: true
+  vertical_flip: false
+  rotation_degrees: 15
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.1
+
+split_policy:
+  train: train
+  validation: validation
+  test: test
+  leakage_check_field: reference_item_id
+
+notes: >
+  FabricNET learned metric experiment. WARNING: FabricNET has 1 image per sample,
+  making contrastive pair generation limited. This config exists for completeness.
+  FabricNET is more useful for evaluation/projection than supervised training.

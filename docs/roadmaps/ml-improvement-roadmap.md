@@ -218,10 +218,18 @@ infrastructure, real traffic, or scale that does not yet exist.
 
 **Goal:** First meaningful learned model comparison against baseline.
 
+**Status:** ✅ First full run completed on LeaData V1. `learned_metric_v0.2.0`
+(pretrained ResNet18, contrastive loss, 256-dim, 20 epochs) achieved 100% NN
+agreement and R@1 but cluster separation (0.5609) was lower than
+texture_baseline_v0.2.0 (0.9418). Hand-crafted LBP+Gabor features remain
+strongest on public texture data. Next steps: supervised contrastive loss,
+frozen backbone, hard-negative mining. See
+[results](../datasets/learned-metric-v02-results.md).
+
 - **Decide backbone and embedding dimension before training** — see [ADR-0002](../../auth-platform/docs/architecture/adr-0002-learned-embedding-dimension-and-backbone.md)
-- Enable pretrained backbone (ImageNet ResNet, ConvNeXt, or DINOv2-style)
-- Add stronger augmentations (random erasing, affine, microscopy-aware)
-- Evaluate 128-d vs 256-d vs 512-d embedding dimension
+- ✅ Enable pretrained backbone (ImageNet ResNet18 default)
+- ✅ Add stronger augmentations (random resized crop, color jitter, random erasing, rotation)
+- Evaluate 128-d vs 256-d vs 512-d embedding dimension (256-d is default)
 - Train on gold-set train split — **if the first gold set is too small for meaningful
   training, use it as an evaluation-only benchmark first and defer learned model training
   until sufficient real data exists**

@@ -245,6 +245,26 @@ current query-image UI uses simple similarity-based interpretation bands;
 dedicated OOD scoring is experimental and not promoted to the UI until validated
 on real data.
 
+## Fifth Implemented Experiment
+
+**learned_metric_v0.2.0** — first bounded learned metric experiment comparing
+a pretrained ResNet18 with contrastive loss against `texture_baseline_v0.2.0`.
+
+- Configurable backbone, embedding dimension, loss, augmentations, label strategy
+- YAML experiment configs for LeaData (primary) and FabricNET (limited)
+- LeaData has 16 species classes — meaningful for contrastive training
+- FabricNET has 1 image per class — limited for supervised approaches
+- Quick targets available for fast iteration
+- Model artifacts saved locally under gitignored outputs, not registered as
+  production models
+
+This is the first learned model experiment. On LeaData V1 (20 epochs, 897
+training images, 16 classes), learned_metric_v0.2.0 achieved 100% NN agreement
+and R@1 but cluster separation (0.5609) was lower than texture_baseline_v0.2.0
+(0.9418). Hand-crafted LBP+Gabor features remain strongest on public texture
+data. Next steps: supervised contrastive loss, frozen backbone, hard-negative
+mining. See [learned_metric_v0.2.0 Results](../datasets/learned-metric-v02-results.md).
+
 ## 12. Related Documents
 
 - [ML Improvement Roadmap](ml-improvement-roadmap.md)
@@ -253,3 +273,4 @@ on real data.
 - [Baseline Feature Comparison Results](../datasets/baseline-feature-comparison-results.md)
 - [Preprocessing Comparison Results](../datasets/preprocessing-comparison-results.md)
 - [Region-Specific Analysis Results](../datasets/region-specific-analysis-results.md)
+- [learned_metric_v0.2.0 Results](../datasets/learned-metric-v02-results.md)

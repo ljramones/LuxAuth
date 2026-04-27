@@ -1,0 +1,48 @@
+# learned_metric_v0.2.0 — LeaData V1 config
+#
+# LeaData has 1200 images across 16 species/sample groups.
+# Species is a meaningful label for supervised contrastive/classification-style training.
+
+model_name: learned_metric
+model_version: v0.2.0
+
+dataset_version: external_leadata_v0.1.0
+
+backbone: resnet18
+pretrained: true
+embedding_dim: 256
+input_size: 224
+
+loss: contrastive
+margin: 1.0
+
+epochs: 20
+batch_size: 16
+learning_rate: 0.0005
+weight_decay: 0.0001
+seed: 42
+
+# LeaData species labels provide meaningful multi-class structure.
+label_strategy: external_item_id
+
+augmentations:
+  random_resized_crop: true
+  horizontal_flip: true
+  vertical_flip: false
+  rotation_degrees: 15
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.1
+  random_erasing: 0.1
+
+split_policy:
+  train: train
+  validation: validation
+  test: test
+  leakage_check_field: reference_item_id
+
+notes: >
+  LeaData V1 learned metric experiment. 16 species/sample groups provide
+  meaningful multi-class labels for contrastive training. Results are
+  diagnostic only — LeaData is not a luxury authentication dataset.
