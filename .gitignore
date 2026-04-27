@@ -92,6 +92,7 @@ datasets/**/*.rar
 
 # Jupyter notebooks
 .ipynb_checkpoints/
+notebooks/_*.png
 
 # Experiment outputs (regenerable)
 experiments/outputs/*

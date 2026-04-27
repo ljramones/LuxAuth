@@ -13,6 +13,7 @@ Jupyter notebooks for exploring LuxAuth ML strategies.
 | 04-loss-function-comparison | Compare contrastive, triplet, ArcFace, SupCon losses |
 | 05-backbone-comparison | Compare ResNet, ConvNeXt, ViT, DINOv2 backbones |
 | 06-region-specific-analysis | Per-region embedding behavior and scoring |
+| 07-ood-and-query-scoring | OOD scoring method comparison |
 | 99-experiment-summary-template | Template for recording experiment conclusions |
 
 ## Rules
@@ -25,11 +26,17 @@ Jupyter notebooks for exploring LuxAuth ML strategies.
 - Save outputs under `experiments/outputs/`
 - Curated summaries go to `docs/datasets/results/`
 
-## Setup
+## Before Running Notebooks
+
+See [SETUP.md](SETUP.md) for full setup instructions, kernel registration, and
+troubleshooting.
+
+Quick start from repo root:
 
 ```bash
-cd auth-platform
-source .venv/bin/activate  # or create a notebook venv
-pip install jupyter
-jupyter notebook --notebook-dir=../notebooks
+make notebook-deps      # install dependencies
+make notebook-kernel    # register Jupyter kernel
+make notebook           # start JupyterLab
 ```
+
+Then select **Kernel > Change Kernel > LuxAuth auth-platform** in Jupyter.
