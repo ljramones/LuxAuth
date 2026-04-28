@@ -151,22 +151,58 @@ To generate results: `make loss-comparison-leadata-quick` (fast) or
 
 ---
 
-### 8. 05-backbone-comparison.ipynb
+### 8. 08-label-strategy-comparison.ipynb
 
 | Field | Value |
 |---|---|
-| **Status** | Future |
-| **Purpose** | Compare backbone architectures after loss-function comparison |
-| **Backend required** | Yes (when implemented) |
-| **Heavy compute** | Yes (multiple training runs) |
-| **Candidate backbones** | ResNet18, ResNet50, ConvNeXt-Tiny, ViT/SigLIP/DINOv2-style encoders |
+| **Status** | Implemented (Phase 7) |
+| **Purpose** | Compare species vs external_item_id label strategies for learned models |
+| **Backend required** | Yes (for training); No (for inspecting results) |
+| **Generated results needed** | `experiments/outputs/label-strategy-comparison/label_strategy_comparison_summary.json` |
+| **Heavy compute** | Yes for training; No for inspection |
+| **Strategies compared** | external_item_id (16 classes), species (4 classes) |
 | **Prerequisite** | Loss-function comparison results (notebook 04) |
 
-Do not run until the backbone experiment framework is implemented.
+To generate results: `make label-strategy-comparison-leadata-quick` (fast) or
+`make label-strategy-comparison-leadata-medium` from `auth-platform/`.
 
 ---
 
-### 9. 99-experiment-summary-template.ipynb
+### 9. 05-backbone-comparison.ipynb
+
+| Field | Value |
+|---|---|
+| **Status** | Implemented (Phase 8) |
+| **Purpose** | Compare backbones, frozen vs fine-tuned, and embedding dimensions |
+| **Backend required** | Yes (for training); No (for inspecting results) |
+| **Generated results needed** | `experiments/outputs/backbone-comparison/backbone_comparison_summary.json` |
+| **Heavy compute** | Yes for training (8 configs); No for inspection |
+| **Configs** | ResNet18/50 × frozen/finetune × 256d/512d × contrastive/batch-hard |
+| **Prerequisite** | Label-strategy comparison results (notebook 08) |
+
+To generate results: `make backbone-comparison-leadata-quick` (fast) or
+`make backbone-comparison-leadata-medium` from `auth-platform/`.
+
+---
+
+### 10. 09-augmentation-schedule-comparison.ipynb
+
+| Field | Value |
+|---|---|
+| **Status** | Implemented (Phase 9) |
+| **Purpose** | Compare augmentation profiles, optimizers, schedulers, and projection heads |
+| **Backend required** | Yes (for training); No (for inspecting results) |
+| **Generated results needed** | `experiments/outputs/augmentation-schedule-comparison/augmentation_schedule_comparison_summary.json` |
+| **Heavy compute** | Yes for training (8 configs); No for inspection |
+| **Fixed variables** | ResNet18 fine-tuned, 256d, external_item_id, LeaData V1 |
+| **Prerequisite** | Backbone comparison results (notebook 05) |
+
+To generate results: `make augmentation-schedule-comparison-leadata-quick` (fast) or
+`make augmentation-schedule-comparison-leadata-medium` from `auth-platform/`.
+
+---
+
+### 11. 99-experiment-summary-template.ipynb
 
 | Field | Value |
 |---|---|

@@ -2,7 +2,7 @@ PYTHON ?= python3
 TEST_PYTHON := $(shell if [ -x .venv/bin/python ]; then echo .venv/bin/python; else command -v $(PYTHON); fi)
 RUFF := $(shell if [ -x .venv/bin/ruff ]; then echo .venv/bin/ruff; else command -v ruff; fi)
 
-.PHONY: up down logs ps init test test-unit test-integration lint lint-fix lint-full format smoke clean health generate-synthetic-data ingest-reference-data smoke-real-images reset-local-data seed-dataset-version run-evaluation evaluation-report train-metric-model reembed-reference-data compare-evaluations analyze-embeddings inspect-neighbors calibrate-thresholds export-projection smoke-capture-api generate-lab-capture-batch validate-capture-batch ingest-capture-batch promote-capture-batch smoke-capture-batch ingest-external-dataset ingest-external-dataset-dry-run validate-external-manifest external-dataset-report baseline-feature-experiment baseline-feature-experiment-fabricnet baseline-feature-experiment-leadata compare-baseline-features reembed-fabricnet-v02 reembed-leadata-v02 external-dataset-report-fabricnet-v02 external-dataset-report-leadata-v02 preprocessing-experiment preprocessing-experiment-fabricnet preprocessing-experiment-leadata preprocessing-experiment-leadata-quick preprocessing-experiment-leadata-medium compare-preprocessing-experiments region-analysis region-analysis-smoke region-analysis-fabricnet region-analysis-leadata compare-region-analysis ood-experiment-fabricnet-vs-leadata ood-experiment-leadata-vs-fabricnet compare-ood-experiments learned-metric-experiment learned-metric-experiment-leadata-v02 learned-metric-experiment-fabricnet-v02 learned-metric-experiment-leadata-quick compare-learned-vs-baseline loss-comparison-leadata-quick loss-comparison-leadata-medium loss-comparison-leadata compare-loss-comparison notebook-deps notebook-kernel notebook
+.PHONY: up down logs ps init test test-unit test-integration lint lint-fix lint-full format smoke clean health generate-synthetic-data ingest-reference-data smoke-real-images reset-local-data seed-dataset-version run-evaluation evaluation-report train-metric-model reembed-reference-data compare-evaluations analyze-embeddings inspect-neighbors calibrate-thresholds export-projection smoke-capture-api generate-lab-capture-batch validate-capture-batch ingest-capture-batch promote-capture-batch smoke-capture-batch ingest-external-dataset ingest-external-dataset-dry-run validate-external-manifest external-dataset-report baseline-feature-experiment baseline-feature-experiment-fabricnet baseline-feature-experiment-leadata compare-baseline-features reembed-fabricnet-v02 reembed-leadata-v02 external-dataset-report-fabricnet-v02 external-dataset-report-leadata-v02 preprocessing-experiment preprocessing-experiment-fabricnet preprocessing-experiment-leadata preprocessing-experiment-leadata-quick preprocessing-experiment-leadata-medium compare-preprocessing-experiments region-analysis region-analysis-smoke region-analysis-fabricnet region-analysis-leadata compare-region-analysis ood-experiment-fabricnet-vs-leadata ood-experiment-leadata-vs-fabricnet compare-ood-experiments learned-metric-experiment learned-metric-experiment-leadata-v02 learned-metric-experiment-fabricnet-v02 learned-metric-experiment-leadata-quick compare-learned-vs-baseline loss-comparison-leadata-quick loss-comparison-leadata-medium loss-comparison-leadata compare-loss-comparison label-strategy-comparison-leadata-quick label-strategy-comparison-leadata-medium label-strategy-comparison-leadata backbone-comparison-leadata-quick backbone-comparison-leadata-medium backbone-comparison-leadata compare-backbone-comparison augmentation-schedule-comparison-leadata-quick augmentation-schedule-comparison-leadata-medium augmentation-schedule-comparison-leadata notebook-deps notebook-kernel notebook
 
 up:
 	docker compose up --build -d
@@ -225,6 +225,36 @@ loss-comparison-leadata:
 
 compare-loss-comparison:
 	$(PYTHON) scripts/compare_learned_vs_baseline.py --dataset external_leadata_v0.1.0 --learned-dir ../experiments/outputs/loss-comparison
+
+label-strategy-comparison-leadata-quick:
+	$(PYTHON) scripts/run_label_strategy_comparison.py --configs ../experiments/configs/label_strategy_comparison --limit 100 --epochs 2
+
+label-strategy-comparison-leadata-medium:
+	$(PYTHON) scripts/run_label_strategy_comparison.py --configs ../experiments/configs/label_strategy_comparison --limit 300 --epochs 5
+
+label-strategy-comparison-leadata:
+	$(PYTHON) scripts/run_label_strategy_comparison.py --configs ../experiments/configs/label_strategy_comparison
+
+backbone-comparison-leadata-quick:
+	$(PYTHON) scripts/run_backbone_comparison.py --configs ../experiments/configs/backbone_comparison --limit 100 --epochs 2
+
+backbone-comparison-leadata-medium:
+	$(PYTHON) scripts/run_backbone_comparison.py --configs ../experiments/configs/backbone_comparison --limit 300 --epochs 5
+
+backbone-comparison-leadata:
+	$(PYTHON) scripts/run_backbone_comparison.py --configs ../experiments/configs/backbone_comparison
+
+compare-backbone-comparison:
+	$(PYTHON) scripts/compare_learned_vs_baseline.py --dataset external_leadata_v0.1.0 --learned-dir ../experiments/outputs/backbone-comparison
+
+augmentation-schedule-comparison-leadata-quick:
+	$(PYTHON) scripts/run_augmentation_schedule_comparison.py --configs ../experiments/configs/augmentation_schedule_comparison --limit 100 --epochs 2
+
+augmentation-schedule-comparison-leadata-medium:
+	$(PYTHON) scripts/run_augmentation_schedule_comparison.py --configs ../experiments/configs/augmentation_schedule_comparison --limit 300
+
+augmentation-schedule-comparison-leadata:
+	$(PYTHON) scripts/run_augmentation_schedule_comparison.py --configs ../experiments/configs/augmentation_schedule_comparison
 
 notebook-deps:
 	.venv/bin/python -m pip install -r ../notebooks/requirements.txt

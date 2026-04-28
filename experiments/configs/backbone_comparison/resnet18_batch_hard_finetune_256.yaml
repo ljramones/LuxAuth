@@ -1,0 +1,32 @@
+model_name: learned_metric
+model_version: v0.2.0
+dataset_version: external_leadata_v0.1.0
+backbone: resnet18
+pretrained: true
+embedding_dim: 256
+input_size: 224
+epochs: 5
+learning_rate: 0.0005
+weight_decay: 0.0001
+seed: 42
+label_strategy: external_item_id
+augmentations:
+  random_resized_crop: true
+  horizontal_flip: true
+  rotation_degrees: 15
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.1
+  random_erasing: 0.1
+split_policy:
+  train: train
+  validation: validation
+  test: test
+  leakage_check_field: reference_item_id
+loss:
+  name: batch_hard_triplet
+  margin: 0.2
+freeze_backbone: false
+batch_size: 32
+notes: "Backbone comparison: ResNet18 batch-hard finetune 256d"

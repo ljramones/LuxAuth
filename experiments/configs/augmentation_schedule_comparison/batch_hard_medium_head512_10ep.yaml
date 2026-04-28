@@ -1,0 +1,26 @@
+model_name: learned_metric
+model_version: v0.2.0
+dataset_version: external_leadata_v0.1.0
+backbone: resnet18
+pretrained: true
+freeze_backbone: false
+embedding_dim: 256
+input_size: 224
+label_strategy: external_item_id
+seed: 42
+split_policy:
+  train: train
+  validation: validation
+  test: test
+  leakage_check_field: reference_item_id
+loss:
+  name: batch_hard_triplet
+  margin: 0.2
+augmentation_profile: medium
+batch_size: 32
+epochs: 10
+learning_rate: 0.0005
+projection_head:
+  hidden_dim: 512
+  dropout: 0.0
+notes: "Aug comparison: batch_hard medium proj512 10ep"

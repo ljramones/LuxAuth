@@ -90,7 +90,7 @@ def main():
     print(f"Config:     {args.config}")
     print(f"Dataset:    {config.dataset_version}")
     print(f"Model:      {config.model_name}_{config.model_version}")
-    print(f"Backbone:   {config.backbone} (pretrained={config.pretrained})")
+    print(f"Backbone:   {config.backbone} (pretrained={config.pretrained}, freeze={config.freeze_backbone})")
     print(f"Emb dim:    {config.embedding_dim}")
     from experiments.losses import BATCH_LOSSES, get_loss_name
     loss_name = get_loss_name(config)
@@ -196,9 +196,16 @@ def main():
         pretrained=config.pretrained,
         embedding_dim=config.embedding_dim,
         allow_random_init=args.allow_random_init,
+        freeze_backbone=config.freeze_backbone,
+        projection_head=config.projection_head,
     )
-    param_count = sum(p.numel() for p in model.parameters())
-    print(f"  Parameters: {param_count:,}")
+    total_params = sum(p.numel() for p in model.parameters())
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    frozen_params = total_params - trainable_params
+    print(f"  Total params:     {total_params:,}")
+    print(f"  Trainable params: {trainable_params:,}")
+    if frozen_params > 0:
+        print(f"  Frozen params:    {frozen_params:,}")
 
     # Train
     print("\nTraining...")
@@ -244,9 +251,17 @@ def main():
         "dataset_version": config.dataset_version,
         "backbone": config.backbone,
         "pretrained": config.pretrained,
+        "freeze_backbone": config.freeze_backbone,
         "embedding_dim": config.embedding_dim,
+        "total_params": total_params,
+        "trainable_params": trainable_params,
+        "frozen_params": frozen_params,
         "loss": loss_name,
         "loss_config": config.loss if isinstance(config.loss, dict) else {"name": config.loss},
+        "augmentation_profile": config.augmentation_profile or "custom",
+        "optimizer": config.optimizer,
+        "scheduler": config.scheduler,
+        "projection_head": config.projection_head,
         "epochs": config.epochs,
         "batch_size": config.batch_size,
         "learning_rate": config.learning_rate,

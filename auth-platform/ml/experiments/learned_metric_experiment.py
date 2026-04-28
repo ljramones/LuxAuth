@@ -44,8 +44,13 @@ class LMExperimentConfig:
     learning_rate: float = 0.0005
     weight_decay: float = 0.0001
     seed: int = 42
+    freeze_backbone: bool = False
     label_strategy: str = "external_item_id"
+    augmentation_profile: str = ""  # none/light/medium/strong; empty = use augmentations dict
     augmentations: dict = field(default_factory=dict)
+    optimizer: dict = field(default_factory=lambda: {"name": "adam"})
+    scheduler: dict = field(default_factory=lambda: {"name": "none"})
+    projection_head: dict = field(default_factory=lambda: {"hidden_dim": 256, "dropout": 0.0, "layers": 2})
     split_policy: dict = field(default_factory=lambda: {
         "train": "train", "validation": "validation", "test": "test",
         "leakage_check_field": "reference_item_id",
@@ -55,12 +60,23 @@ class LMExperimentConfig:
     @classmethod
     def from_yaml(cls, path: str | Path) -> LMExperimentConfig:
         data = yaml.safe_load(Path(path).read_text())
+        # Extract dict fields that need special handling
         aug = data.pop("augmentations", {})
         split = data.pop("split_policy", {})
-        # Filter only known fields
+        opt = data.pop("optimizer", {})
+        sched = data.pop("scheduler", {})
+        proj = data.pop("projection_head", {})
+        # Filter only known scalar fields
         known = {f.name for f in cls.__dataclass_fields__.values()}
         filtered = {k: v for k, v in data.items() if k in known}
-        return cls(**filtered, augmentations=aug or {}, split_policy=split or {})
+        return cls(
+            **filtered,
+            augmentations=aug or {},
+            split_policy=split or {},
+            optimizer=opt or {"name": "adam"},
+            scheduler=sched or {"name": "none"},
+            projection_head=proj or {"hidden_dim": 256, "dropout": 0.0, "layers": 2},
+        )
 
 
 def validate_config(config: LMExperimentConfig) -> list[str]:
@@ -89,8 +105,13 @@ def create_model(
     pretrained: bool = True,
     embedding_dim: int = 256,
     allow_random_init: bool = False,
+    freeze_backbone: bool = False,
+    projection_head: dict | None = None,
 ) -> nn.Module:
     """Create an embedding model with configurable backbone.
+
+    If freeze_backbone=True, backbone parameters are frozen and only the
+    projection head is trainable.
 
     Raises ValueError if pretrained=True but weights unavailable and
     allow_random_init=False.
@@ -122,11 +143,23 @@ def create_model(
 
     feat_dim = BACKBONE_FEATURE_DIMS.get(backbone, 512)
     features = nn.Sequential(*list(base.children())[:-1])
-    projection = nn.Sequential(
-        nn.Linear(feat_dim, 256),
+
+    if freeze_backbone:
+        for param in features.parameters():
+            param.requires_grad = False
+
+    ph = projection_head or {}
+    proj_hidden = ph.get("hidden_dim", min(512, feat_dim))
+    dropout = ph.get("dropout", 0.0)
+
+    proj_layers: list[nn.Module] = [
+        nn.Linear(feat_dim, proj_hidden),
         nn.ReLU(inplace=True),
-        nn.Linear(256, embedding_dim),
-    )
+    ]
+    if dropout > 0:
+        proj_layers.append(nn.Dropout(p=dropout))
+    proj_layers.append(nn.Linear(proj_hidden, embedding_dim))
+    projection = nn.Sequential(*proj_layers)
 
     class _EmbModel(nn.Module):
         def __init__(self):
@@ -147,9 +180,43 @@ def create_model(
 # Augmented transforms
 # ---------------------------------------------------------------------------
 
+AUGMENTATION_PROFILES = {
+    "none": {},
+    "light": {
+        "horizontal_flip": True,
+        "rotation_degrees": 10,
+        "color_jitter": {"brightness": 0.1, "contrast": 0.1},
+    },
+    "medium": {
+        "random_resized_crop": True,
+        "horizontal_flip": True,
+        "rotation_degrees": 15,
+        "color_jitter": {"brightness": 0.2, "contrast": 0.2, "saturation": 0.1},
+        "random_erasing": 0.1,
+    },
+    "strong": {
+        "random_resized_crop": True,
+        "horizontal_flip": True,
+        "vertical_flip": True,
+        "rotation_degrees": 20,
+        "color_jitter": {"brightness": 0.3, "contrast": 0.3, "saturation": 0.2},
+        "random_erasing": 0.2,
+        "gaussian_blur": True,
+    },
+}
+
+
 def build_train_transform(config: LMExperimentConfig) -> transforms.Compose:
-    """Build training transform from config augmentation settings."""
-    aug = config.augmentations
+    """Build training transform from augmentation profile or dict settings."""
+    profile = config.augmentation_profile
+    if profile and profile in AUGMENTATION_PROFILES:
+        aug = AUGMENTATION_PROFILES[profile]
+    elif profile and profile not in AUGMENTATION_PROFILES:
+        raise ValueError(f"Unknown augmentation profile: {profile}. "
+                         f"Available: {list(AUGMENTATION_PROFILES.keys())}")
+    else:
+        aug = config.augmentations
+
     t = []
     if aug.get("random_resized_crop"):
         t.append(transforms.RandomResizedCrop(config.input_size, scale=(0.8, 1.0)))
@@ -169,6 +236,8 @@ def build_train_transform(config: LMExperimentConfig) -> transforms.Compose:
             contrast=cj.get("contrast", 0),
             saturation=cj.get("saturation", 0),
         ))
+    if aug.get("gaussian_blur"):
+        t.append(transforms.GaussianBlur(kernel_size=3, sigma=(0.1, 1.0)))
     t.append(transforms.ToTensor())
     re = aug.get("random_erasing", 0)
     if re:
@@ -189,6 +258,34 @@ def build_eval_transform(config: LMExperimentConfig) -> transforms.Compose:
 # Label strategy
 # ---------------------------------------------------------------------------
 
+def _extract_species_from_uri(uri: str) -> str:
+    """Extract species from S3 object URI path.
+
+    LeaData URIs follow: .../raw/{Species}_{SampleCode}/{image_id}.jpg
+    Example: .../raw/Sheep_SBTS25/abc.jpg → "Sheep"
+    """
+    parts = uri.rstrip("/").split("/")
+    for part in reversed(parts):
+        if "_" in part and any(part.startswith(s) for s in
+                               ("Buffalo", "Cow", "Goat", "Sheep",
+                                "buffalo", "cow", "goat", "sheep")):
+            return part.split("_")[0].capitalize()
+    return "unknown"
+
+
+def _extract_sample_group_from_uri(uri: str) -> str:
+    """Extract sample group folder from S3 object URI path.
+
+    LeaData URIs follow: .../raw/{Species}_{SampleCode}/{image_id}.jpg
+    Example: .../raw/Sheep_SBTS25/abc.jpg → "Sheep_SBTS25"
+    """
+    parts = uri.rstrip("/").split("/")
+    # The parent directory of the image file is the sample group
+    if len(parts) >= 2:
+        return parts[-2]
+    return "unknown"
+
+
 def extract_label(record: dict, strategy: str) -> str:
     """Extract a label from a dataset record using the specified strategy."""
     if strategy == "authenticity_status":
@@ -197,6 +294,12 @@ def extract_label(record: dict, strategy: str) -> str:
         return str(record.get("reference_item_id", "unknown"))
     if strategy == "region_code":
         return str(record.get("region_code", "unknown"))
+    if strategy == "species":
+        uri = record.get("object_uri", "")
+        return _extract_species_from_uri(uri)
+    if strategy == "sample_group":
+        uri = record.get("object_uri", "")
+        return _extract_sample_group_from_uri(uri)
     # Fallback: use reference_item_id
     return str(record.get("reference_item_id", "unknown"))
 
@@ -332,13 +435,32 @@ def train_model(
     from experiments.losses import create_loss
 
     criterion = create_loss(config)
-    optimizer = torch.optim.Adam(
-        model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay,
-    )
+
+    # Optimizer
+    opt_cfg = config.optimizer if isinstance(config.optimizer, dict) else {"name": "adam"}
+    opt_name = opt_cfg.get("name", "adam")
+    opt_lr = opt_cfg.get("learning_rate", config.learning_rate)
+    opt_wd = opt_cfg.get("weight_decay", config.weight_decay)
+    trainable = [p for p in model.parameters() if p.requires_grad]
+    if opt_name == "adamw":
+        optimizer = torch.optim.AdamW(trainable, lr=opt_lr, weight_decay=opt_wd)
+    else:
+        optimizer = torch.optim.Adam(trainable, lr=opt_lr, weight_decay=opt_wd)
+
+    # Scheduler
+    sched_cfg = config.scheduler if isinstance(config.scheduler, dict) else {"name": "none"}
+    sched_name = sched_cfg.get("name", "none")
+    lr_scheduler = None
+    if sched_name == "cosine":
+        min_lr = sched_cfg.get("min_lr", 1e-6)
+        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=config.epochs, eta_min=min_lr,
+        )
 
     model = model.to(device)
     train_losses = []
     val_losses = []
+    lr_history = []
 
     for epoch in range(config.epochs):
         model.train()
@@ -395,15 +517,25 @@ def train_model(
             avg_val = val_loss / max(n_val, 1)
             val_losses.append(avg_val)
 
+        current_lr = optimizer.param_groups[0]["lr"]
+        lr_history.append(current_lr)
+        if lr_scheduler:
+            lr_scheduler.step()
+
         print(f"  Epoch {epoch + 1}/{config.epochs}: "
               f"train_loss={avg_train:.4f}"
-              f"{f', val_loss={avg_val:.4f}' if val_loader else ''}")
+              f"{f', val_loss={avg_val:.4f}' if val_loader else ''}"
+              f", lr={current_lr:.6f}")
 
+    best_val_idx = int(min(range(len(val_losses)), key=lambda i: val_losses[i])) if val_losses else -1
     return {
         "train_losses": train_losses,
         "val_losses": val_losses,
+        "lr_history": lr_history,
         "final_train_loss": train_losses[-1] if train_losses else None,
         "final_val_loss": val_losses[-1] if val_losses else None,
+        "best_val_epoch": best_val_idx + 1 if best_val_idx >= 0 else None,
+        "best_val_loss": val_losses[best_val_idx] if best_val_idx >= 0 else None,
     }
 
 

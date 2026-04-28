@@ -64,17 +64,25 @@ These are improvements we intend to implement, roughly in the order listed.
 - **Hard/semi-hard negative mining** — ✅ **Batch-hard triplet implemented.** Mining
   hard negatives (closest wrong-class examples) forces the model to learn finer
   distinctions. Semi-hard mining is safer for small datasets.
-- **Stronger augmentations** — add random erasing, affine transforms, and microscopy-aware
-  augmentations (simulated focus variation, lighting angle changes). The current
-  augmentations (flip, rotate, color jitter) are mild.
+- **Label strategy comparison** — ✅ **Medium comparison completed.** external_item_id
+  (16 classes) consistently outperforms species (4 classes) — contrastive +
+  external_item_id: 0.7258 vs species: 0.1501; batch-hard: 0.7127 vs 0.3507.
+  Finer labels provide stronger training signal. Use external_item_id as default.
+  See [results](../datasets/label-strategy-comparison-results.md).
+- **Stronger augmentations** — ✅ **Augmentation profiles implemented.** Four profiles
+  (none/light/medium/strong) with random erasing, blur, stronger jitter. Comparison
+  framework tests augmentation alongside optimizer (Adam/AdamW), scheduler
+  (none/cosine), and projection head (256/512). Microscopy-aware augmentations
+  remain future work pending real microscope data.
 - **Embedding dimension experiment** — compare 128-dim against 256-dim embeddings. Higher
   dimensions may capture more texture detail, but increase storage and search cost.
   Production learned embeddings may need 512-d or 768-d — this decision must be made
   before committing to large-scale real reference embeddings
   (see [ADR-0002](../../auth-platform/docs/architecture/adr-0002-learned-embedding-dimension-and-backbone.md)).
-- **Backbone candidates** — evaluate pretrained ResNet, ConvNeXt, DINOv2-style
-  self-supervised models, and ViT/SigLIP-style visual encoders before first serious
-  gold-set training. The current randomly-initialized ResNet18 is a lifecycle scaffold only.
+- **Backbone candidates** — ✅ **Comparison framework implemented.** ResNet18 vs
+  ResNet50, frozen vs fine-tuned, 256d vs 512d compared on LeaData V1. ConvNeXt,
+  DINOv2, ViT/SigLIP deferred until ResNet results are analyzed. Pretrained
+  backbone is now the default (no more random init).
 - **learned_metric_v1 architecture decision** — make backbone, dimension, and loss
   decisions before real reference library growth. Changing architecture after large-scale
   embedding requires full re-embedding of all references.

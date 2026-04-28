@@ -280,6 +280,44 @@ exceed texture_baseline_v0.1.0 but remain below v0.2.0 (0.9418). Next
 experiment should test label strategy, not backbone. See
 [Loss Function Comparison Results](../datasets/loss-function-comparison-results.md).
 
+## Seventh Implemented Experiment
+
+**Label strategy comparison** on LeaData V1. Compares species (4 classes) vs
+external_item_id (16 classes) label strategies with contrastive and batch-hard
+triplet losses.
+
+Species-level labels test whether broader material-class structure produces
+better embedding organization. external_item_id labels test finer sample-group
+retrieval. These measure different semantic tasks — species asks "is it the
+same type of leather?" while external_item_id asks "is it from the same sample?"
+
+This comes before backbone comparison because the training signal (labels)
+is more likely to be the bottleneck than the model architecture. Medium run
+(5 epochs, 300 images) confirms external_item_id consistently outperforms
+species across both losses. See
+[Label Strategy Comparison Results](../datasets/label-strategy-comparison-results.md).
+
+## Eighth Implemented Experiment
+
+**Backbone and training-regime comparison** on LeaData V1. Compares ResNet18 vs
+ResNet50, frozen backbone vs fine-tuned, and 256-dim vs 512-dim embeddings
+across contrastive and batch-hard triplet losses (8 configs total).
+
+This follows label strategy comparison because the training signal question is
+now answered (external_item_id is best). The remaining variable is model
+architecture and training regime.
+
+## Ninth Implemented Experiment
+
+**Augmentation and training-schedule comparison** on LeaData V1. Compares
+augmentation profiles (none/light/medium/strong), optimizers (Adam/AdamW),
+schedulers (none/cosine), projection head sizes (256/512), and epoch counts
+(5/10) while holding backbone (ResNet18 fine-tuned), embedding dim (256),
+and label strategy (external_item_id) fixed.
+
+This is the final training-regime experiment before pivoting to real
+microscope/gold-set data.
+
 ## 12. Related Documents
 
 - [ML Improvement Roadmap](ml-improvement-roadmap.md)
@@ -290,3 +328,6 @@ experiment should test label strategy, not backbone. See
 - [Region-Specific Analysis Results](../datasets/region-specific-analysis-results.md)
 - [learned_metric_v0.2.0 Results](../datasets/learned-metric-v02-results.md)
 - [Loss Function Comparison Results](../datasets/loss-function-comparison-results.md)
+- [Label Strategy Comparison Results](../datasets/label-strategy-comparison-results.md)
+- [Backbone Comparison Results](../datasets/backbone-comparison-results.md)
+- [Augmentation/Schedule Comparison Results](../datasets/augmentation-schedule-comparison-results.md)
