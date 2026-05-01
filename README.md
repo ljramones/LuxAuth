@@ -9,6 +9,12 @@ evidence-processing and similarity-scoring platform — not a simple real/fake c
 > **This repository is private.** It contains proprietary authentication logic,
 > dataset governance tooling, and ML pipeline infrastructure. Do not share externally.
 
+> **Strategic alternative under evaluation:** see [MultiSensorAuthenticationApproach.md](MultiSensorAuthenticationApproach.md)
+> for a multi-modal capture approach (UV fluorescence, IR reflectance, polarized light, photogrammetric height map,
+> acoustic response, alongside visible) at normal magnification, motivated primarily by patent posture and operational
+> profile. The microscopy-based pipeline (Phase 1–10 complete, Phase 11 shadow integration planned) remains the in-flight
+> implementation; the multi-sensor document is a strategic-options briefing, not an adopted plan.
+
 ## Repository Structure
 
 ```text
@@ -136,7 +142,8 @@ Documentation:
 
 | Document | Purpose |
 |---|---|
-| [ConceptOfOperation.md](ConceptOfOperation.md) | Product and technical concept |
+| [ConceptOfOperation.md](ConceptOfOperation.md) | Current microscopy-based product and technical concept |
+| [MultiSensorAuthenticationApproach.md](MultiSensorAuthenticationApproach.md) | Strategic alternative: multi-modal capture at normal magnification (UV / IR / polarized / photogrammetry / acoustic). Under evaluation, not adopted. |
 | [docs/roadmap.md](docs/roadmap.md) | Development roadmap |
 | [docs/repo-structure.md](docs/repo-structure.md) | Repository layout |
 | [docs/security-and-secrets.md](docs/security-and-secrets.md) | Secrets policy |
