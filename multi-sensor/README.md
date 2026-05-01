@@ -9,6 +9,8 @@ This folder holds working artifacts for the multi-sensor authentication research
 | File | Purpose |
 |---|---|
 | [experiment-plan.md](experiment-plan.md) | Phased experiment plan (E0–E6) with explicit go/no-go gates, hardware budgets, success criteria, and failure modes per phase |
+| [parts-and-circuits.md](parts-and-circuits.md) | Per-phase parts list, wiring diagrams, and cumulative budget for E0–E6. Covers I2C bus layout, electrode/probe construction, lighting and tent layout, sensor positioning fixtures, integration considerations (pull-ups, power budget, cable lengths), and a deliberately-not-included list. CAD pricing as of 2026. |
+| [few-shot-academic-position.md](few-shot-academic-position.md) | Academic-defense position for the multi-sensor system's few-shot operation. Argues that few-shot prototype-based authentication is a property of the embedding space, not the capture modality, and explains how Phase 10's microscopy validation transfers to and is extended in multi-sensor. Names what the system claims, what it doesn't, and what's empirically tested vs assumed. |
 
 ## Companion documents (outside this folder)
 

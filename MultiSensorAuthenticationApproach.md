@@ -362,8 +362,10 @@ Initial document. Six-modality multi-sensor approach (visible, UV fluorescence, 
 
 ## Related documents
 
-- [multi-sensor/](multi-sensor/) — working folder for the multi-sensor research track. Holds the experiment plan and (eventually) capture artifacts and per-phase results.
+- [multi-sensor/](multi-sensor/) — working folder for the multi-sensor research track. Holds the experiment plan, the few-shot academic-position document, and (eventually) capture artifacts and per-phase results.
 - [multi-sensor/experiment-plan.md](multi-sensor/experiment-plan.md) — phased experiment plan (E0–E6) that operationalizes this strategic briefing, with explicit go/no-go gates per phase.
+- [multi-sensor/parts-and-circuits.md](multi-sensor/parts-and-circuits.md) — per-phase parts list, wiring diagrams, and cumulative budget (CAD) for E0–E6. The build-side companion to the experiment plan.
+- [multi-sensor/few-shot-academic-position.md](multi-sensor/few-shot-academic-position.md) — academic-defense position for the system's few-shot operation. Argues that few-shot prototype-based authentication is a property of the embedding space, not the capture modality, and explains how the Phase 10 microscopy validation transfers to multi-sensor.
 - [ConceptOfOperation.md](ConceptOfOperation.md) — current microscopy-based product and technical concept
 - [docs/datasets/few-shot-prototype-results.md](docs/datasets/few-shot-prototype-results.md) — Phase 10 evidence on the microscopy approach
 - [docs/roadmaps/dinov2-shadow-integration-plan.md](docs/roadmaps/dinov2-shadow-integration-plan.md) — Phase 11 plan for the microscopy approach
