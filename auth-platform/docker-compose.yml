@@ -178,6 +178,11 @@ services:
       <<: *service-env
       SERVICE_NAME: embedding-service
       SERVICE_PORT: "8203"
+      HF_HOME: /app/.cache/huggingface
+    volumes:
+      # Persist HuggingFace foundation-model weights (DINOv2 ~350MB) across
+      # container restarts so we do not re-download on every up/down.
+      - hf-cache:/app/.cache/huggingface
 
   vector-search-service:
     <<: *service-common
@@ -262,6 +267,7 @@ services:
 volumes:
   pgdata:
   localstack-data:
+  hf-cache:
 
 networks:
   auth-platform-net:

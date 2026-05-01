@@ -89,6 +89,21 @@ def _embed_learned_metric(norm_bytes: bytes) -> list[float]:
         return _embed_texture_baseline(norm_bytes)
 
 
+def _embed_dinov2_frozen(norm_bytes: bytes) -> list[float]:
+    from app.embedders.dinov2_frozen import compute_dinov2_embedding
+    return compute_dinov2_embedding(norm_bytes)
+
+
+def _select_embedder(model_version: str):
+    if model_version.startswith("dinov2"):
+        return _embed_dinov2_frozen
+    if "learned_metric" in model_version:
+        return _embed_learned_metric
+    if model_version == "texture_baseline_v0.2.0":
+        return _embed_texture_baseline_v2
+    return _embed_texture_baseline
+
+
 async def generate_embedding(
     image_asset_id: UUID, db_session: AsyncSession
 ) -> EmbeddingRecord:
@@ -109,13 +124,7 @@ async def generate_embedding(
     uri_parts = norm_uri.replace("s3://", "").split("/", 1)
     norm_bytes = download_file(uri_parts[0], uri_parts[1])
 
-    # Select backend
-    if "learned_metric" in model_version:
-        embedding = _embed_learned_metric(norm_bytes)
-    elif model_version == "texture_baseline_v0.2.0":
-        embedding = _embed_texture_baseline_v2(norm_bytes)
-    else:
-        embedding = _embed_texture_baseline(norm_bytes)
+    embedding = _select_embedder(model_version)(norm_bytes)
 
     # Format as pgvector literal
     vec_str = "[" + ",".join(f"{v:.8f}" for v in embedding) + "]"
@@ -153,7 +162,7 @@ async def generate_embedding(
         "EMBEDDING_GENERATED",
         image_id=image_asset_id,
         scan_session_id=scan_session_id,
-        payload={"embedding_model_version": model_version, "dim": EMBEDDING_DIM},
+        payload={"embedding_model_version": model_version, "dim": len(embedding)},
     )
 
     envelope = EventEnvelope(

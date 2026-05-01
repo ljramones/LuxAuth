@@ -202,7 +202,31 @@ To generate results: `make augmentation-schedule-comparison-leadata-quick` (fast
 
 ---
 
-### 11. 99-experiment-summary-template.ipynb
+### 11. 10-few-shot-prototype-matching.ipynb
+
+| Field | Value |
+|---|---|
+| **Status** | **Phase 10 complete** — full grid executed against LeaData and FabricNET; results documented |
+| **Purpose** | Compare few-shot inference strategies (NN, top-k mean, prototype centroid/medoid, abstention) across embedding models (texture_baseline, learned_metric, DINOv2 frozen) on LeaData; measure support-set stabilization curves |
+| **Backend required** | Yes (Postgres + pgvector with embeddings persisted under each model version) |
+| **Generated results needed** | `experiments/outputs/few-shot/<timestamp>/few_shot_summary.json` (and CSVs alongside) |
+| **Heavy compute** | Medium — DINOv2 weights download once (~350MB); 500 episodes per cell; full grid runs in tens of minutes |
+| **Strategies compared** | nearest_neighbor, top_k_mean, prototype_centroid, prototype_medoid, prototype_centroid_with_abstention |
+| **Prerequisite** | DINOv2 embeddings persisted via `make generate-dinov2-embeddings` |
+| **Diagnostic-only caveat** | LeaData species/item labels are not authentic-vs-counterfeit; do not extrapolate K values directly to luxury authentication |
+| **Curated results** | [Few-Shot Prototype Matching Results](../docs/datasets/few-shot-prototype-results.md) |
+
+To regenerate results: `make few-shot-quick` (smoke), `make few-shot-full-leadata-itemid`,
+`make few-shot-full-leadata-species`, or `make few-shot-full-leadata-ood` from `auth-platform/`.
+Cross-tabulate runs with `make compare-few-shot`.
+
+**Phase 10c (PatchCore anomaly detection)** is **deferred-pending-shadow-evidence**. Phase 10 evidence + external review reframed PatchCore from "planned parallel track" to "scheduled when at least one trigger condition is met" — typically when shadow-period real-capture data surfaces a class of failure the metric path cannot resolve. Trigger conditions are listed in [DINOv2 Shadow Integration Plan §12](../docs/roadmaps/dinov2-shadow-integration-plan.md#12-patchcore-relationship-phase-10c).
+
+**Phase 11 (DINOv2 Shadow Integration)** is the production-bound follow-on. It introduces DINOv2 as a `shadow_candidate` path running alongside the production decision authority during a bounded evidence-gathering window. The production decision authority remains `texture_baseline_v0.2.0` for the entire shadow period — running the empirically-weaker model in production while gathering evidence on the candidate is a deliberate conservative choice. Sub-phases 11A through 11F cover model registry, candidate threshold profile, reference re-embedding, workbench query support, dual-strategy shadow logging, real-capture recalibration, and promotion decision review. Promotion is gated on pre-declared criteria (4 weeks calendar, 100+ sessions, expert-reviewed divergence subset, recalibrated thresholds, strategy selection from real-data evidence). Full plan: [DINOv2 Shadow Integration Plan](../docs/roadmaps/dinov2-shadow-integration-plan.md).
+
+---
+
+### 12. 99-experiment-summary-template.ipynb
 
 | Field | Value |
 |---|---|

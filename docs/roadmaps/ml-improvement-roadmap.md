@@ -264,6 +264,91 @@ frozen backbone, hard-negative mining. See
 - Assess product-latency requirements if mobile capture client is active; consider
   polling/webhook/fast-path orchestration without changing the underlying pipeline
 
+### Phase 6 — Few-Shot Prototype Matching and Foundation-Model Backbone
+
+**Goal:** Make LuxAuth's already-few-shot inference path explicit; calibrate the
+support-set size needed for stable scoring; evaluate a frozen DINOv2 backbone
+as a production embedding candidate.
+
+- Compare inference strategies (nearest-neighbor, top-k mean, prototype
+  centroid, prototype medoid, prototype centroid with abstention) at K = 1, 3,
+  5, 10 with 500 episodes per cell, on LeaData with FabricNET as OOD
+- Compare embedding regimes (`texture_baseline_v0.2.0`, `learned_metric_v0.2.0`,
+  `dinov2_base_frozen_v0.1.0`) on the same harness so the support-set
+  stabilization curve is measured against multiple embedding qualities
+- Sweep abstention thresholds rather than picking one fixed pair; produce
+  accuracy-vs-abstention-rate curves for downstream calibration
+- Persist results under `experiments/outputs/few-shot/` with full provenance
+- Document explicitly: diagnostic only on public texture data; LeaData species
+  is not authentic-vs-counterfeit; required K on luxury data is likely higher
+- Deferred parallel track (Phase 6c): PatchCore-style anomaly detection over
+  an authentic-only memory bank — see Phase 7 §12 for trigger conditions
+
+**Phase 6 status: complete.** Phase 10 of the experiment workbench (this
+roadmap's Phase 6) executed; results showed DINOv2 strongly outperforming
+`texture_baseline_v0.2.0` on the LeaData diagnostic harness. See
+[Few-Shot Prototype Matching Results](../datasets/few-shot-prototype-results.md).
+Promotion of DINOv2 to production decision authority is **not** a Phase 6
+output — it is gated on Phase 7 shadow operation (below) and pre-declared
+promotion criteria.
+
+### Phase 7 — DINOv2 Shadow Integration
+
+**Goal:** Convert "diagnostic-stronger on public data" into "operationally-stronger
+on real captures, with documented evidence and pre-declared promotion criteria"
+through a bounded shadow window. The production decision authority remains
+`texture_baseline_v0.2.0` for the entire shadow period.
+
+This is a deliberately conservative phase. Running the empirically-weaker
+model in production while gathering evidence on the candidate is a chosen
+tradeoff, not an oversight.
+
+- **Phase 7A:** DINOv2 model-version registration (already present), candidate
+  threshold profile registration (`dinov2_base_frozen_default`, status
+  `candidate / diagnostic`), `threshold_profiles` schema extensions for
+  `margin_threshold` and `description` columns, `learned_metric_v0.2.0`
+  historical-comparison gap closure, embedding-service production deployment
+  readiness
+- **Phase 7B:** DINOv2 reference-dataset re-embedding across all governed
+  reference datasets that will be used in shadow scoring; pgvector / HNSW
+  capacity verification at production scale (768-d ≈ 3× texture_baseline);
+  Data Explorer / workbench tooling updates
+- **Phase 7C:** Capture-workbench query path supports DINOv2 scoring alongside
+  `texture_baseline`; side-by-side comparison view for diagnostic use
+- **Phase 7D:** Dual-strategy DINOv2 shadow logging in the production scoring
+  path. `region-scoring-service` computes and logs nearest_neighbor,
+  top_k_mean, prototype_centroid, and prototype_medoid scores **in parallel**
+  for every region in every session. Production decision behavior unchanged.
+  Per-region K logged. **Start of the 4-week / 100-session shadow window.**
+- **Phase 7E:** Real-capture threshold and strategy recalibration after
+  shadow data accumulates. Recalibrate thresholds on real distributions;
+  compare strategies on real data; compute per-region K stability curves;
+  identify abstention curve elbow on real distributions
+- **Phase 7F:** Promotion decision review against pre-declared §7 criteria
+  in the [DINOv2 Shadow Integration Plan](dinov2-shadow-integration-plan.md).
+  Either propose promotion with documented rationale, or extend shadow
+  operation, or revise approach. Promotion is a deliberate written event,
+  not an automatic flip.
+
+**Critical design constraints carried forward from Phase 6 evidence review:**
+
+- Phase 7 must not lock in nearest_neighbor as the production strategy. NN
+  beat prototype_centroid on LeaData; this is hypothesized to be
+  LeaData-specific (low intra-class variance) and may flip on real data
+  with higher intra-class variance. Strategy selection is a Phase 7F
+  decision based on real-capture evidence, not a Phase 7A design choice.
+- The (0.80, 0.10) threshold values from Phase 6 are LeaData-derived starting
+  points only. Production threshold calibration is a Phase 7E output.
+- Phase 6c (PatchCore) is deferred until real hard-OOD probes exist; trigger
+  conditions are listed in the [DINOv2 Shadow Integration Plan §12](dinov2-shadow-integration-plan.md#12-patchcore-relationship-phase-10c).
+- Deferred until real data exists: episodic ProtoNet training; LoRA
+  fine-tuning of DINOv2 on luxury microscopy.
+
+The full shadow integration plan, including pre-declared promotion criteria,
+shadow scoring architecture, candidate threshold profile spec, per-region K
+calibration strategy, and risk register, lives at
+[DINOv2 Shadow Integration Plan](dinov2-shadow-integration-plan.md).
+
 ---
 
 ## 5. Risks
@@ -318,6 +403,7 @@ The next ML milestone (completion of Phase 3 or Phase 4) is reached when:
 - [Development Roadmap](../roadmap.md)
 - [ML Technology Explained](../ml-technology-explained.md)
 - [External Dataset First Run Results](../datasets/external-dataset-first-run-results.md)
+- [Few-Shot Prototype Matching Results](../datasets/few-shot-prototype-results.md)
 - [Public Dataset Evaluation Plan](../datasets/public-dataset-evaluation-plan.md)
 - [Microscope Acceptance Runbook](../operations/microscope-acceptance-runbook.md)
 - [ADR-0001: Defer SageMaker](../../auth-platform/docs/architecture/adr-0001-defer-sagemaker.md)

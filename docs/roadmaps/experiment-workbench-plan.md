@@ -318,6 +318,85 @@ and label strategy (external_item_id) fixed.
 This is the final training-regime experiment before pivoting to real
 microscope/gold-set data.
 
+## Tenth Implemented Experiment
+
+**Few-shot prototype matching with DINOv2 frozen-backbone comparison** on
+LeaData V1. Cross-tabulates inference strategies (nearest-neighbor, top-k
+mean, prototype centroid, prototype medoid, prototype centroid with
+abstention) across three embedding regimes (`texture_baseline_v0.2.0`,
+`learned_metric_v0.2.0`, `dinov2_base_frozen_v0.1.0`) at K = 1, 3, 5, 10,
+with 500 episodes per cell. FabricNET is used as out-of-domain queries.
+
+The phase combines what was previously framed as 10a (prototype inference on
+existing embeddings) and 10b (DINOv2 frozen backbone comparison). Running
+them as one phase is methodologically cleaner because the support-set
+stabilization curve is conditional on embedding quality — calibrating
+capture-protocol decisions against weak embeddings would lock in the wrong
+K.
+
+LuxAuth is already operationally few-shot (image → embedding → vector search
+→ region scoring against a reference cluster). This phase makes that
+explicit and produces the support-set sensitivity curve that drives
+gold-set capture-protocol design.
+
+DINOv2 enters the model registry as `dinov2_base_frozen_v0.1.0` and is
+dispatched through the same `embedding-service` machinery as the other
+embedding models, so reference embeddings for all three live in
+`reference_embeddings` under the same governance.
+
+Diagnostic only on public texture data. LeaData species and sample_group
+labels are not authentic-vs-counterfeit; required K on real luxury data is
+likely higher than what these results suggest.
+
+See [Few-Shot Prototype Matching Results](../datasets/few-shot-prototype-results.md).
+
+## Phase 10c (Deferred — Pending Shadow-Period Hard-OOD Evidence)
+
+**PatchCore-style anomaly detection** over an authentic-only memory bank.
+Structurally different from prototype matching — patch-level features,
+distance-to-memory-bank scoring, different evaluation paradigm.
+
+Originally framed as a planned parallel track. Phase 10 evidence and the
+external review changed this to **deferred-pending-shadow-evidence**:
+DINOv2 + abstention already compresses the metric path's "I don't know"
+cohort below 30% on LeaData, which weakens the immediate case for PatchCore.
+However, FabricNET-vs-LeaData was a structurally easy OOD problem; PatchCore's
+real value proposition has not been tested against hard OOD probes
+(illumination shifts on the same material, novel leather variants,
+counterfeit candidates).
+
+Phase 10c will be scheduled when at least one of the trigger conditions in
+[DINOv2 Shadow Integration Plan §12](dinov2-shadow-integration-plan.md#12-patchcore-relationship-phase-10c)
+is met — typically when shadow-period real-capture data surfaces a class of
+failure the metric path cannot resolve.
+
+## Phase 11 (Production-Bound Follow-On to Phase 10)
+
+**DINOv2 shadow integration.** Introduces `dinov2_base_frozen_v0.1.0` as a
+`shadow_candidate` path running alongside the production decision authority
+during a bounded evidence-gathering window. The production decision authority
+remains `texture_baseline_v0.2.0` for the entire shadow period — running the
+empirically-weaker model in production while gathering evidence on the
+candidate is a deliberate conservative choice, named explicitly so it cannot
+be misinterpreted as an oversight.
+
+Sub-phases 11A (model registry, candidate threshold profile, schema
+extensions, learned_metric historical-comparison gap closure), 11B (reference
+re-embedding, pgvector / HNSW capacity), 11C (workbench query support), 11D
+(dual-strategy shadow logging in the production scoring path — start of the
+4-week / 100-session shadow window), 11E (real-capture threshold and strategy
+recalibration), 11F (promotion decision review against pre-declared
+criteria).
+
+**Critical design constraints.** Phase 11 must not lock in nearest_neighbor
+as the production strategy; NN, top_k_mean, prototype_centroid, and
+prototype_medoid scores are logged in parallel. The (0.80, 0.10) thresholds
+from Phase 10 are LeaData-derived starting points only; production
+thresholds are a Phase 11E output. Promotion criteria are pre-declared
+before Phase 11D begins.
+
+Full plan: [DINOv2 Shadow Integration Plan](dinov2-shadow-integration-plan.md).
+
 ## 12. Related Documents
 
 - [ML Improvement Roadmap](ml-improvement-roadmap.md)
@@ -331,3 +410,5 @@ microscope/gold-set data.
 - [Label Strategy Comparison Results](../datasets/label-strategy-comparison-results.md)
 - [Backbone Comparison Results](../datasets/backbone-comparison-results.md)
 - [Augmentation/Schedule Comparison Results](../datasets/augmentation-schedule-comparison-results.md)
+- [Few-Shot Prototype Matching Results](../datasets/few-shot-prototype-results.md)
+- [DINOv2 Shadow Integration Plan](dinov2-shadow-integration-plan.md)

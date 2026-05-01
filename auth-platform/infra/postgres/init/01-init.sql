@@ -755,7 +755,10 @@ INSERT INTO threshold_profiles (id, profile_name, profile_version, embedding_mod
 INSERT INTO model_versions (id, model_name, model_version, model_type, artifact_uri, description, is_active) VALUES
     ('20000000-0000-0000-0000-000000000001', 'luxury-embed-v1', '1.0.0-stub', 'EMBEDDING',
      's3://auth-platform-ml-artifacts/models/luxury-embed-v1/1.0.0-stub/',
-     'Stub embedding model for local development. Produces deterministic 128-dim vectors.', TRUE);
+     'Stub embedding model for local development. Produces deterministic 128-dim vectors.', TRUE),
+    ('20000000-0000-0000-0000-000000000002', 'dinov2_base_frozen', 'dinov2_base_frozen_v0.1.0', 'EMBEDDING',
+     'hf://facebook/dinov2-base@f9e44c814b77203eaa57a6bdbbd535f21ede1415',
+     'DINOv2 ViT-B/14 frozen, CLS token, L2-normalized 768-d. Foundation-model encoder used as a comparison backbone in Phase 10 few-shot experiments. Diagnostic only on public texture data.', TRUE);
 
 -- Seed 128-dim embeddings for reference images into reference_embeddings
 DO $$

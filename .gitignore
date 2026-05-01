@@ -59,6 +59,11 @@ localstack-data/
 *.h5
 *.safetensors
 
+# HuggingFace model cache (DINOv2 and other foundation-model weights download here)
+.cache/huggingface/
+**/.cache/huggingface/
+huggingface_hub/
+
 # iOS
 apps/ios/build/
 apps/ios/DerivedData/

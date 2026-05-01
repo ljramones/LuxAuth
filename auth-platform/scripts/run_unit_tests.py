@@ -38,6 +38,9 @@ def main() -> int:
     root_tests = ROOT / "tests"
     if root_tests.exists():
         targets.append((ROOT, ("tests",)))
+    ml_experiments_tests = ROOT / "ml" / "experiments" / "tests"
+    if ml_experiments_tests.exists():
+        targets.append((ROOT / "ml", ("experiments/tests",)))
     for service_dir in sorted((ROOT / "services").iterdir()):
         tests_dir = service_dir / "tests"
         if tests_dir.exists():

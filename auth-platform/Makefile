@@ -2,7 +2,7 @@ PYTHON ?= python3
 TEST_PYTHON := $(shell if [ -x .venv/bin/python ]; then echo .venv/bin/python; else command -v $(PYTHON); fi)
 RUFF := $(shell if [ -x .venv/bin/ruff ]; then echo .venv/bin/ruff; else command -v ruff; fi)
 
-.PHONY: up down logs ps init test test-unit test-integration lint lint-fix lint-full format smoke clean health generate-synthetic-data ingest-reference-data smoke-real-images reset-local-data seed-dataset-version run-evaluation evaluation-report train-metric-model reembed-reference-data compare-evaluations analyze-embeddings inspect-neighbors calibrate-thresholds export-projection smoke-capture-api generate-lab-capture-batch validate-capture-batch ingest-capture-batch promote-capture-batch smoke-capture-batch ingest-external-dataset ingest-external-dataset-dry-run validate-external-manifest external-dataset-report baseline-feature-experiment baseline-feature-experiment-fabricnet baseline-feature-experiment-leadata compare-baseline-features reembed-fabricnet-v02 reembed-leadata-v02 external-dataset-report-fabricnet-v02 external-dataset-report-leadata-v02 preprocessing-experiment preprocessing-experiment-fabricnet preprocessing-experiment-leadata preprocessing-experiment-leadata-quick preprocessing-experiment-leadata-medium compare-preprocessing-experiments region-analysis region-analysis-smoke region-analysis-fabricnet region-analysis-leadata compare-region-analysis ood-experiment-fabricnet-vs-leadata ood-experiment-leadata-vs-fabricnet compare-ood-experiments learned-metric-experiment learned-metric-experiment-leadata-v02 learned-metric-experiment-fabricnet-v02 learned-metric-experiment-leadata-quick compare-learned-vs-baseline loss-comparison-leadata-quick loss-comparison-leadata-medium loss-comparison-leadata compare-loss-comparison label-strategy-comparison-leadata-quick label-strategy-comparison-leadata-medium label-strategy-comparison-leadata backbone-comparison-leadata-quick backbone-comparison-leadata-medium backbone-comparison-leadata compare-backbone-comparison augmentation-schedule-comparison-leadata-quick augmentation-schedule-comparison-leadata-medium augmentation-schedule-comparison-leadata notebook-deps notebook-kernel notebook
+.PHONY: up down logs ps init test test-unit test-integration lint lint-fix lint-full format smoke clean health generate-synthetic-data ingest-reference-data smoke-real-images reset-local-data seed-dataset-version run-evaluation evaluation-report train-metric-model reembed-reference-data compare-evaluations analyze-embeddings inspect-neighbors calibrate-thresholds export-projection smoke-capture-api generate-lab-capture-batch validate-capture-batch ingest-capture-batch promote-capture-batch smoke-capture-batch ingest-external-dataset ingest-external-dataset-dry-run validate-external-manifest external-dataset-report baseline-feature-experiment baseline-feature-experiment-fabricnet baseline-feature-experiment-leadata compare-baseline-features reembed-fabricnet-v02 reembed-leadata-v02 external-dataset-report-fabricnet-v02 external-dataset-report-leadata-v02 preprocessing-experiment preprocessing-experiment-fabricnet preprocessing-experiment-leadata preprocessing-experiment-leadata-quick preprocessing-experiment-leadata-medium compare-preprocessing-experiments region-analysis region-analysis-smoke region-analysis-fabricnet region-analysis-leadata compare-region-analysis ood-experiment-fabricnet-vs-leadata ood-experiment-leadata-vs-fabricnet compare-ood-experiments learned-metric-experiment learned-metric-experiment-leadata-v02 learned-metric-experiment-fabricnet-v02 learned-metric-experiment-leadata-quick compare-learned-vs-baseline loss-comparison-leadata-quick loss-comparison-leadata-medium loss-comparison-leadata compare-loss-comparison label-strategy-comparison-leadata-quick label-strategy-comparison-leadata-medium label-strategy-comparison-leadata backbone-comparison-leadata-quick backbone-comparison-leadata-medium backbone-comparison-leadata compare-backbone-comparison augmentation-schedule-comparison-leadata-quick augmentation-schedule-comparison-leadata-medium augmentation-schedule-comparison-leadata generate-dinov2-embeddings-leadata generate-dinov2-embeddings-fabricnet generate-dinov2-embeddings few-shot-quick few-shot-full-leadata-itemid few-shot-full-leadata-species few-shot-full-leadata-ood few-shot-full compare-few-shot notebook-deps notebook-kernel notebook
 
 up:
 	docker compose up --build -d
@@ -255,6 +255,59 @@ augmentation-schedule-comparison-leadata-medium:
 
 augmentation-schedule-comparison-leadata:
 	$(PYTHON) scripts/run_augmentation_schedule_comparison.py --configs ../experiments/configs/augmentation_schedule_comparison
+
+# ─── Phase 10: Few-Shot Prototype Matching + DINOv2 Backbone Comparison ───
+generate-dinov2-embeddings-leadata:
+	$(PYTHON) scripts/generate_embeddings.py --dataset external_leadata_v0.1.0 --model dinov2_base_frozen_v0.1.0
+
+generate-dinov2-embeddings-fabricnet:
+	$(PYTHON) scripts/generate_embeddings.py --dataset external_fabricnet_v0.1.0 --model dinov2_base_frozen_v0.1.0
+
+generate-dinov2-embeddings: generate-dinov2-embeddings-leadata generate-dinov2-embeddings-fabricnet
+
+few-shot-quick:
+	$(PYTHON) scripts/run_few_shot_experiment.py \
+	  --dataset external_leadata_v0.1.0 \
+	  --model texture_baseline_v0.2.0 \
+	  --label-strategy external_item_id \
+	  --shots 1,3,5 \
+	  --episodes 50
+
+few-shot-full-leadata-itemid:
+	$(PYTHON) scripts/run_few_shot_experiment.py \
+	  --dataset external_leadata_v0.1.0 \
+	  --model texture_baseline_v0.2.0 \
+	  --model learned_metric_v0.2.0 \
+	  --model dinov2_base_frozen_v0.1.0 \
+	  --label-strategy external_item_id \
+	  --shots 1,3,5,10 \
+	  --episodes 500
+
+few-shot-full-leadata-species:
+	$(PYTHON) scripts/run_few_shot_experiment.py \
+	  --dataset external_leadata_v0.1.0 \
+	  --model texture_baseline_v0.2.0 \
+	  --model learned_metric_v0.2.0 \
+	  --model dinov2_base_frozen_v0.1.0 \
+	  --label-strategy species \
+	  --shots 1,3,5,10 \
+	  --episodes 500
+
+few-shot-full-leadata-ood:
+	$(PYTHON) scripts/run_few_shot_experiment.py \
+	  --dataset external_leadata_v0.1.0 \
+	  --ood-dataset external_fabricnet_v0.1.0 \
+	  --model texture_baseline_v0.2.0 \
+	  --model learned_metric_v0.2.0 \
+	  --model dinov2_base_frozen_v0.1.0 \
+	  --label-strategy external_item_id \
+	  --shots 1,3,5,10 \
+	  --episodes 500
+
+few-shot-full: few-shot-full-leadata-itemid few-shot-full-leadata-species few-shot-full-leadata-ood
+
+compare-few-shot:
+	$(PYTHON) scripts/compare_few_shot_experiments.py --latest 5
 
 notebook-deps:
 	.venv/bin/python -m pip install -r ../notebooks/requirements.txt

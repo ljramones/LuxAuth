@@ -88,6 +88,24 @@
 - See [Experiment Workbench Plan](roadmaps/experiment-workbench-plan.md)
   for the Jupyter experiment framework and candidate methods
 
+### Phase 11: DINOv2 Shadow Integration (Planning Complete, Implementation Pending)
+- Phase 10 diagnostic experiments showed DINOv2 frozen ViT-B/14 strongly
+  outperforming `texture_baseline_v0.2.0` on public texture data (LeaData)
+- Phase 11 introduces DINOv2 as a `shadow_candidate` path running alongside
+  the production decision authority during a bounded evidence-gathering window
+- **Production decision authority remains `texture_baseline_v0.2.0`** for the
+  entire shadow period — running the empirically-weaker model in production
+  for evidence gathering is a deliberate conservative choice
+- Sub-phases 11A-11F: model registry, candidate threshold profile, reference
+  re-embedding, workbench query support, dual-strategy shadow logging in the
+  scoring path, real-capture recalibration, promotion decision review
+- Promotion gated on pre-declared criteria (4 weeks calendar, 100+ sessions,
+  expert-reviewed divergence subset, recalibrated thresholds, strategy
+  selection from real-data evidence)
+- Phase 10c (PatchCore) is deferred until real hard-OOD probes exist
+- See [DINOv2 Shadow Integration Plan](roadmaps/dinov2-shadow-integration-plan.md)
+- See [Few-Shot Prototype Matching Results](datasets/few-shot-prototype-results.md)
+
 ### AWS Deployment (When Ready)
 - ECS Fargate for services
 - RDS PostgreSQL + pgvector

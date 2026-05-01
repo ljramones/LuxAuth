@@ -42,6 +42,8 @@ ignore = ["E501"]
 "services/*/app/routes.py" = ["B008"]
 "services/*/app/data_routes.py" = ["B008"]
 "ml/metric_learning/{losses,model}.py" = ["N812"]
+# K is ML convention for K-shot; appears as JSON output keys and column headers.
+"scripts/{run_few_shot_experiment,compare_few_shot_experiments}.py" = ["N802", "N803", "N806"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["libs"]

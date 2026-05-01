@@ -16,6 +16,7 @@ Jupyter notebooks for exploring LuxAuth ML strategies.
 | 07-ood-and-query-scoring | OOD scoring method comparison |
 | 08-label-strategy-comparison | Compare species vs sample-group label strategies |
 | 09-augmentation-schedule-comparison | Compare augmentation, optimizer, scheduler, projection head |
+| 10-few-shot-prototype-matching | Few-shot inference strategies × DINOv2 vs texture_baseline / learned_metric (Phase 10) |
 | 99-experiment-summary-template | Template for recording experiment conclusions |
 
 ## Rules
