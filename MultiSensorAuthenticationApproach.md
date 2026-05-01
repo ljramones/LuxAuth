@@ -1,289 +1,336 @@
 # LuxAuth Multi-Sensor Authentication Approach
 
-**Document version:** v2
+**Document version:** v3
 **Date:** 2026-05-01
-**Status:** Strategic option under evaluation. **Not** an adopted plan.
-**Relationship to current work:** The microscopy-based pipeline (Phase 1–10 complete, Phase 11 shadow integration plan documented) remains the in-flight implementation. This document describes an alternative architectural direction motivated primarily by patent posture and operational profile concerns. The two approaches are not currently being run concurrently; this document exists so that if a v0.1 multi-sensor exploration is undertaken, the design context is captured rather than re-derived.
-**v2 update summary:** modality set expanded from 6 to 12 with new three-tier organization; acoustic modality scope-restricted (was framed as universal in v1); calibration target made explicit and mandatory; new "Intended deployment context" section distinguishing reference-library construction from operational at-counter use; budget revised to ~$650-750 with staged-build option; modality applicability matrix introduced; modality weight estimation methodology added (within-class / between-class variance on authentic-only data). Full section-level diff in the [Revision history](#revision-history) at the bottom.
+**v3 update summary:** new top-level Status section reframes the document as a parallel research track with an explicit v0.1 decision gate; new "Operational definition" section gives a concrete engineering boundary for "normal magnification"; modalities reorganized by priority/risk tiers (High / Medium / Experimental); thermal switched to passive-cooling for v0.1 (eliminates active-pulse-control problem); acoustic and photogrammetry demoted to Experimental tier; magnetic reframed as diagnostic input rather than standalone authenticity signal; calibration targets clarified as separate per-modality references with ~$80-100 overhead; explicit safety preconditions and proceed/stop decision criteria added to v0.1 exploration; new "Roadmap placement" section replaces the prior "Relationship" section. Full section-level diff in the [Revision history](#revision-history) at the bottom.
 
-> **What this document is.** A strategic-options briefing describing a multi-modal capture approach at normal (non-microscopic) magnification. Written in advisor-to-project-owner voice. The first concrete step it proposes — a one-evening exploration with already-owned hardware — is small, reversible, and informative regardless of whether the full approach is later adopted.
->
-> **What this document is not.** A migration plan from the current microscopy pipeline. A commitment to abandon Phase 11. A claim that the multi-sensor approach is empirically better than microscopy for luxury authentication — that's exactly what a v0.1 exploration would test.
+---
+
+## Status
+
+**Parallel research track, not adopted.** This document describes a strategic alternative to the in-flight microscopy/DINOv2 path, not a planned next phase of it. Phase 11 (DINOv2 shadow integration on the microscopy path) remains the active workstream. This document only proceeds past v0.1 exploration if the one-evening signal check demonstrates that physically orthogonal modalities provide independent discriminative signal on real items. If v0.1 fails, this document remains a considered-and-rejected strategic option in the project record.
+
+This is research-phase design work. It is not a production specification, and patent freedom-to-operate analysis remains required before any commercial deployment.
 
 ---
 
 ## Executive summary
 
-A multi-sensor authentication system captures multiple physically distinct measurement modalities of the same item region and combines them into a unified authentication decision. Each modality reads a different physical property of the material — fluorescence chemistry, infrared absorption, polarization response, surface topology, spectral reflectance, dielectric behavior, thermal diffusivity, acoustic damping, magnetic response — and a counterfeiter has to defeat all of them simultaneously rather than just one.
+A multi-sensor authentication system captures multiple physically distinct measurement modalities of the same item region and combines them into a unified authentication decision. Each modality reads a different physical property of the material — fluorescence chemistry, infrared absorption, polarization response, surface topology, spectral reflectance, dielectric behavior, thermal diffusivity, acoustic damping, magnetic content — and a counterfeiter has to defeat all of them simultaneously rather than just one.
 
 The architectural impact on the existing LuxAuth pipeline is small. The pipeline is already modality-agnostic: it ingests captures, produces embeddings, performs similarity search, scores per region, and aggregates region scores into a conservative authentication decision. The multi-sensor approach changes what gets captured and which embedding model is applied to each capture. Everything downstream carries forward.
 
 Total hardware cost is targeted at under $750 for the full rig. Individual modalities can be tested for under $50 each.
 
-This document is a research-phase design. It is not a production specification, and patent freedom-to-operate analysis remains required before any commercial deployment.
+---
+
+## Operational definition: "normal magnification"
+
+Because the patent posture argument depends on operating outside the microscopy regime, the engineering needs a concrete boundary. For purposes of this document, "normal magnification" or "non-microscopic" means:
+
+The capture system images a macroscopic region visible to the unaided eye. Field of view is measured in centimeters, not microscope-scale millimeters. The system does not rely on microscope optics, microscope-scale feature extraction, or any classification dependent on features at sub-100-micron resolution. A standard close-focus camera lens is permissible; macro photography in the 1:1 to 1:4 range is permissible; objective lenses, microscope tubes, or USB-microscope handheld devices are not.
+
+This is an engineering boundary, not a legal conclusion. It exists to keep the system design honest. Whether this boundary is sufficient to avoid specific patent claims is a question for an FTO opinion against the actual implementation.
 
 ---
 
 ## Motivation
 
-**Patent posture.** The dominant commercial system has filed patents whose independent claims center on microscopic image classification using machine learning, with "microscopic" doing significant claim-scope work. Designing around that limitation requires staying out of the microscopy regime as a structural matter, not tweaking implementation details. Multi-modal capture at normal magnification is structurally outside that claim space. This does not constitute legal clearance — multi-modal sensor fusion has its own active patent landscape, and a real FTO opinion against the specific implementation is required before commercialization.
+**Patent posture.** The dominant commercial system has filed patents whose independent claims center on microscopic image classification using machine learning, with "microscopic" doing significant claim-scope work. Designing around that limitation requires staying out of the microscopy regime as a structural matter, not tweaking implementation details. Multi-modal capture at normal magnification is potentially less directly exposed to microscopy-specific claims, but this is not legal clearance — multi-modal sensor fusion has its own active patent landscape, and a real FTO opinion against the specific implementation is required before commercialization. Research-phase exploration only.
 
-**Operational profile.** Microscopy at authentication-relevant scales (roughly 10-micron features over a ~12mm × 10mm field of view) requires careful working distance, narrow depth of field, controlled focus, and a non-trivial operator skill curve. Multi-modal capture at normal magnification eliminates all of these.
+**Operational profile.** Microscopy at authentication-relevant scales (roughly 10-micron features over a ~12mm × 10mm field of view) requires careful working distance, narrow depth of field, controlled focus, and a non-trivial operator skill curve. Multi-modal capture at normal magnification eliminates these.
 
-**Defense in depth.** A microscopy-only system gives counterfeiters one signal to defeat. A counterfeiter who replicates surface texture at 10-micron resolution defeats the entire system. The multi-sensor thesis is that the combined feature space across physically orthogonal modalities is more discriminative than any single modality — including microscopy — because the modalities capture genuinely independent physical properties. The strength of the thesis depends on the modalities actually being orthogonal rather than correlated.
-
-This thesis is empirically testable, and testing it is the first concrete step before any hardware build.
+**Defense in depth.** A microscopy-only system gives counterfeiters one signal to defeat. The multi-sensor thesis is that the combined feature space across physically orthogonal modalities is more discriminative than any single modality, because the modalities capture genuinely independent physical properties. The strength of the thesis depends on the modalities actually being orthogonal rather than correlated, which is what the v0.1 exploration is designed to test.
 
 ---
 
 ## Intended deployment context
 
-This matters because it shapes everything downstream and was underspecified in v1.
-
 The multi-sensor protocol described here is intended primarily for **reference library construction** — building a high-quality gold-set of authentic captures across modalities, against which subsequent authentication queries can be compared. A complete capture per item takes fifteen to thirty minutes once the rig is set up and the operator is trained, which is appropriate for reference library work but too slow for high-throughput operational deployment.
 
-For operational at-counter authentication (resale platforms, point-of-sale verification), a faster simpler subset of modalities would be calibrated against the reference library. Operational capture might use only visible reference, UV fluorescence, and capacitive measurement — three modalities, ninety seconds total — with the per-modality scores compared against the rich multi-modal reference embeddings. The operational deployment is a separate v0.3+ question and not in scope for this document.
+For operational at-counter authentication, a fast subset of modalities would be calibrated against the rich reference library. Operational capture might use only visible reference, UV fluorescence, and capacitive measurement — three modalities, ninety seconds total — with the per-modality scores compared against the full multi-modal reference embeddings. Operational deployment is a v0.3+ question and out of scope for this document.
 
 For high-value-item authentication services where each item commands enough revenue to justify the time, the full multi-sensor protocol can be deployed operationally.
 
 ---
 
+## Modality priority and risk assessment
+
+Modalities are organized by v0.1 priority based on expected signal value, cost, repeatability risk, and damage risk to items.
+
+**High priority** (cheap, safe, expected high signal — start here):
+
+| Modality | Expected signal | Cost | Repeatability risk | Damage risk |
+|---|---|---|---|---|
+| Visible reference (flat) | High | $0-30 | Low | None |
+| Visible raking light | Medium-high | $30 | Low-medium | None |
+| UV fluorescence (365nm) | High | $60-100 | Medium | None to item; UV eye/skin precautions required |
+| Polarized visible | Medium-high | $20 | Low | None |
+| Capacitive / dielectric | High (theory) | $5-50 | Medium-high (humidity, contact) | None to robust items; possible contact pressure marking on delicate finishes |
+
+**Medium priority** (moderate cost or applicability, useful additions after High tier validates):
+
+| Modality | Expected signal | Cost | Repeatability risk | Damage risk |
+|---|---|---|---|---|
+| NIR reflectance (850nm) | Medium | $50-100 | Medium | None |
+| Hyperspectral spot | Medium-high | $70 | Low-medium | None |
+| Transmitted light | High (when applicable) | $30 | Low | None |
+| Weight + dimensions | Low-medium | $50 | Low | None |
+| Magnetic (hardware diagnostic) | Variable, item-dependent | $5 | Low | None |
+
+**Experimental** (damage risk, repeatability problems, or unproven for luxury — defer or scope-restrict):
+
+| Modality | Expected signal | Cost | Repeatability risk | Damage risk |
+|---|---|---|---|---|
+| Photogrammetric height map | Uncertain (smartphone quality) | $0-20 | Medium-high | None |
+| Thermal time-constant | Medium (theory) | $25-50 | High (pulse control) | Possible on adhesives, waxes, patina, exotics, vintage |
+| Acoustic response | Medium (hardware/structured leather only) | $50-100 | Medium | Yes — surface marking risk on smooth finishes; hardware-only and thick-structured-leather-only |
+
+The High tier is what v0.1 should focus on. Medium tier is for v0.2 once orthogonality is demonstrated. Experimental tier requires non-damaging protocols validated on scrap materials before any application to real items.
+
+---
+
 ## The capture modalities
 
-The full modality set is organized into three tiers by physical orthogonality and discriminative independence.
+### Core imaging modalities
 
-### Core imaging modalities (the original five, plus raking-light and transmitted-light)
+**Visible-light reference (flat illumination).** Standard photograph under controlled diffuse white-light illumination, with a calibration target visible in frame. Baseline against which other modalities are interpreted. Captures color accuracy, edge work, finishing quality, surface uniformity, hardware plating consistency.
 
-**Visible-light reference (flat illumination).** A standard photograph of the region under controlled diffuse white-light illumination, with a calibration target visible in frame. The baseline against which other modalities are interpreted, and itself a useful authentication signal — high-quality color, contrast, and macro-detail capture is informative for finishing quality, edge work, and surface uniformity.
+**Visible-light raking illumination.** Same region under low-angle directional light, all other lighting off. Reveals surface relief invisible under flat light: embossing depth, stitch hole quality, edge paint thickness, heat-stamp impressions, leather grain elevation. Free addition — same camera, different lighting geometry.
 
-**Visible-light raking illumination.** The same region under low-angle directional light from one side, with all other lighting off. Raking light reveals surface relief that's invisible under flat light: embossing depth, stitch hole quality, edge paint thickness, heat-stamp impressions, leather grain elevation. Free addition — same camera, different lighting geometry, captured in the same session as the flat reference.
+**Ultraviolet fluorescence (365nm).** Same region illuminated with 365nm UV light, all visible-light sources off. Use 365nm specifically; the longer-wavelength 395nm variant is much weaker and triggers fluorescence in fewer materials. Captures adhesive composition (authentic vs. counterfeit glues fluoresce differently), dye chemistry, optical brighteners (frequently present in counterfeit fabrics), aged versus new material.
 
-**Ultraviolet fluorescence.** The same region illuminated with 365nm UV light (not 395nm — the longer-wavelength variant is much weaker and triggers fluorescence in fewer materials), with all visible-light sources off. Many luxury materials fluoresce in characteristic ways. Authentic leather treatments, dyes, adhesives, threads, and inks often have distinctive UV signatures that counterfeit substitutes lack. Conservation scientists and forensic examiners have used this technique for decades on paintings, documents, and textiles.
+**Near-infrared reflectance (850nm).** Same region illuminated with 850nm IR, captured with IR-capable camera (phone IR-cut filters block this; a converted webcam or Pi NoIR camera is needed). Captures dye penetration depth, underlying material structure beneath surface coatings, fiber composition.
 
-**Near-infrared reflectance.** The same region illuminated with 850nm IR, captured with a camera whose IR-cut filter has been removed. IR reveals features that absorb or reflect infrared differently from visible light — often shows underlying structures in coatings, dye penetration patterns, and material composition differences that are invisible in the visible spectrum.
+**Polarized visible light.** Two captures of the region under visible light, polarizer at 0° and 90°. The cross-polarized difference reveals specular versus diffuse reflection patterns, distinguishing material crystallinity, surface roughness statistics, plating versus solid metal.
 
-**Polarized visible light.** Two captures of the region under visible light, one with a linear polarizer at 0° and one at 90° (cross-polarized). The difference between the two reveals specular versus diffuse reflection patterns, which distinguish material types — authentic leather scatters polarized light differently from synthetic leather, authentic gold-plated hardware behaves differently from cheap plated alternatives.
+**Photogrammetric height map.** Five to ten visible-light photos from different angles, processed into a 3D surface reconstruction. Captures grain depth distribution, pore structure, embossed-pattern depth, edge roll quality. Smartphone photogrammetry is rough; v0.1 needs to verify whether the roughness is systematic (informative) or noise (not informative).
 
-**Photogrammetric height map.** Five to ten visible-light photos of the region from slightly different angles, processed by structured-light or multi-view-stereo software into a 3D surface reconstruction. Authentication features are statistical properties of the surface: roughness, fractal dimension, peak distribution, autocorrelation length. Surface topography is a physically different feature from microscopic visual texture.
+**Transmitted light (thin regions only).** LED panel behind item, illumination through translucent regions. Reveals internal fiber structure, lamination layers, backing material composition. Region-dependent — only applies to leather edges, fabric labels, paper documentation, hardware gaps.
 
-**Transmitted light (thin regions only).** For regions where the item allows backlighting — leather edges, fabric labels, paper documentation, hardware gaps — illumination from behind the item reveals internal structure. Counterfeit leather often has fiberboard or fabric backing visible under transmitted light that authentic full-grain leather doesn't. Region-dependent, only applies to thin or translucent regions, but cheap when applicable (small LED panel, ~$30).
+### Non-optical modalities
 
-### Non-optical modalities (the genuinely orthogonal additions)
+**Capacitive / dielectric response.** Sensor measures how the material responds to a small electrical signal. Real leather (hygroscopic, protein-based, complex fiber structure) has characteristically different dielectric response than PU, PVC, or coated/laminated alternatives. Output is a single numerical value or, with a more capable AD5933-based board, an impedance spectrum across frequencies. Hardware: $5-50. Contact-based. The strongest single non-optical addition because it's both extremely cheap and the most orthogonal modality to optical signals.
 
-These are the additions that the v2 review surfaced and that v1 underweighted. Each measures a physical property that no optical modality can read, and that's the property that makes the system actually defense-in-depth rather than redundant.
+Repeatability caveat: humidity, contact pressure, contact area, electrode geometry, and surface coatings all affect readings. The v0.1 test needs to assess whether discrimination between materials is robust to these variations or only works under tightly controlled conditions.
 
-**Capacitive / dielectric response.** A small sensor (interdigitated electrodes on a PCB, or even a simple capacitor formed by a foil pad and an Arduino pin) measures how the material responds to a small electrical signal. Real leather is a hygroscopic protein-based material with residual moisture and complex fiber structure; PU and PVC substitutes have markedly different dielectric responses; coated and laminated materials respond differently again. The output is a single numerical value (or, with a more capable AD5933-based board, an impedance spectrum across frequencies). Hardware: $5-50 depending on approach. Contact-based, which limits some workflows but is fine for in-hand authentication. This is the strongest single non-optical addition because it's both extremely cheap and the most orthogonal modality to everything else.
+**Thermal time-constant (passive cooling for v0.1).** For v0.1, no active heating element. Equilibrate items in a controlled warm environment (e.g., a closed cabinet at room temperature plus a few degrees), then move to a cooler measurement environment and record the passive cooling curve via an IR thermometer (MLX90614, ~$25) over 10-20 seconds. This eliminates the pulse-control problem entirely. The 10-20 minute equilibration period is fine for reference library capture but not operational. Active heating becomes a v0.2 question if passive proves discriminative.
 
-**Thermal time-constant.** A brief controlled heat pulse (small resistive heating element) followed by measurement of the cooling curve via an IR thermometer (MLX90614, ~$25). Thermal diffusivity is a bulk material property determined by composition, density, and internal structure. A full-grain vegetable-tanned leather has different thermal behavior than a bonded leather or a coated synthetic. Solid metal hardware has dramatically different thermal time constants than plated zinc alloy. The output is a 1D waveform (temperature vs. time over 10-20 seconds), which fits the existing pipeline cleanly. Hardware: under $50. Non-contact, which is operationally cleaner than capacitive. The trick is controlling the heat pulse precisely enough for repeatable curves.
+What it captures: bulk thermal diffusivity, which depends on composition, density, and internal structure. Catches plated-plastic-masquerading-as-metal and bonded-leather-masquerading-as-full-grain in ways no surface measurement can.
 
-**Hyperspectral spot reflectance.** A Triad sensor (SparkFun, ~$70, AS7265x chipset) provides 18 narrow spectral bands from 410nm to 940nm. The trade-off versus the imaging modalities: spatial resolution is lost (single ~8mm spot vs. full image) but spectral resolution is gained (15-20nm bands vs. R/G/B broadband plus single UV band plus single IR band). The two are complementary. The imaging side has good spatial resolution but coarse spectral resolution; a hyperspectral spot adds fine spectral resolution at single points. For material identity questions ("is this the same dye chemistry?") spectral resolution matters more than spatial. For texture questions, spatial wins. Hardware: $70.
+Damage caveat: even passive equilibration to mildly warm temperatures (a few degrees above ambient) can affect adhesives, waxes, patina on aged items, exotic skins, and vintage materials. Apply only to items where mild warming is verified safe.
 
-**Acoustic response (scope-restricted).** A controlled mechanical excitation with a piezo contact microphone recording the response waveform. The v1 framing presented this as universally applicable; that was wrong. Dropping a weighted striker on Hermès box calf or Delvaux smooth leather will leave a visible mark; on vintage or exotic skins it's a non-starter entirely. The honest scope: acoustic applies to *metal hardware regions* (buckles, locks, feet — soft-tipped low-force strike, no marking risk on metal) and *thick structured leather* where damage risk is acceptable. Smooth luxury leather, exotic skins, vintage items, and fabric items are out of scope. For applicable regions, acoustic measures internal density and assembly quality (cast vs. machined hardware, glued vs. stitched assembly) in ways no optical modality can. Hardware: piezo + striker rig, under $100.
+**Hyperspectral spot reflectance.** SparkFun Triad sensor (~$70, AS7265x chipset) provides 18 narrow spectral bands from 410nm to 940nm. Single ~8mm spot rather than full image. Trade-off versus broadband imaging: lose spatial resolution, gain spectral resolution. Useful for material identity questions where the visible appearance is convincingly faked but the underlying chemistry differs.
 
-**Magnetic response (hardware only).** A Hall effect sensor (~$5) measures the magnetic response of metal hardware. Real brass and gold are non-magnetic; ferrous-core plated alternatives are magnetic. This is a sharp, decisive signal in the cases where it applies — counterfeit hardware with a steel core under thin plating shows up immediately. Narrow application but extremely cheap and discriminative for the metal-hardware regions it applies to.
+**Acoustic response (scope-restricted).** Soft-tipped low-force striker with piezo contact microphone. Scope: metal hardware regions and thick structured leather only. Smooth luxury leather, exotic skins, vintage items, fabric items are out of scope — marking risk is unacceptable. For applicable regions, captures internal density, assembly quality (cast vs. machined hardware, glued vs. stitched assembly).
 
-### Structured metadata (sanity-check tier)
+For any serious acoustic work beyond v0.1, the manual striker should be replaced with a solenoid-actuated soft-tipped striker for repeatable impulse delivery. Manual striking introduces too much variance for ML comparison across sessions.
+
+**Magnetic response (hardware diagnostic).** Hall effect sensor (~$5) measures ferromagnetic content of metal hardware. This is a *diagnostic* (helps identify hardware composition) rather than a direct authenticity signal. Many authentic luxury items use stainless steel (ferromagnetic) or ferromagnetic alloys; many counterfeits use non-ferrous zinc alloys. The reading separates material classes, and how those classes map to authenticity is item-type-dependent and requires per-item-type calibration. Useful as an input to the embedding/scoring system but not as a standalone authenticity signal.
+
+### Structured metadata
 
 Not modalities in the embedding-and-search sense, but cheap measurements that catch sloppy fakes and give expert reviewers useful sanity checks.
 
-**Weight.** Digital scale (~$30). Counterfeiters generally get external dimensions right but often miss assembly weight by a few percent because internal structure (foam, stiffeners, hardware density) differs.
+**Weight.** Digital scale (~$30). Counterfeiters generally get external dimensions right but miss assembly weight by a few percent because internal structure differs.
 
-**Dimensions and proportions.** Digital caliper (~$20). Edge thickness, strap thickness, handle thickness, hardware dimensions, stitches per centimeter. Structured measurements that should be in the system even if they're not "AI."
+**Dimensions and proportions.** Digital caliper (~$20). Edge thickness, strap thickness, handle thickness, hardware dimensions, stitches per centimeter.
 
-**Capture context metadata.** Ambient temperature, humidity, ambient light level, capture session ID, device identifier, calibration target reference. These don't authenticate but explain capture variation.
+**Capture context.** Ambient temperature, humidity, ambient light level, capture session ID, device identifier, calibration target reference. These don't authenticate but explain capture variation.
 
-### The calibration target (mandatory)
+### Calibration targets (mandatory)
 
-A small color/gray/UV-reactive/IR-reflective reference card visible in every capture. Cost: ~$20. This is mandatory, not optional, and was underemphasized in v1. Without it, the embedding model will learn camera and lighting variation rather than material variation. It belongs in every capture from day one.
+Multi-spectral and electrical work is sensitive to ambient conditions in ways single-modality imaging isn't. Without calibration references in every capture, the embedding model learns camera and lighting variation rather than material variation.
+
+A single combined calibration card covering all modalities does not exist as an off-the-shelf product. The v0.1 approach uses separate per-modality references, captured as appropriate:
+
+- Visible: standard 18% gray card or X-Rite ColorChecker (~$30)
+- UV fluorescence: UV fluorescence reference standard from a forensic supply catalog or a hand-built card with known fluorescent pigments (~$30-50)
+- IR reflectance: IR reflectance standard or aluminum-tape reference (~$20)
+- Capacitive: a known reference material with characterized dielectric response, captured at the start of each session
+- Thermal: a known reference material with characterized thermal mass
+
+Total calibration overhead: ~$80-100. Mandatory, not optional.
 
 ---
 
 ## Hardware
 
-The expanded budget breaks down approximately as follows.
+The full rig budget breaks down approximately as:
 
-Light tent or photo box ($50-80). Camera mount ($30). Calibration target ($20).
+Light tent or photo box ($50-80). Camera mount ($30). Calibration targets ($80-100, separate per modality as above).
 
-Illumination: 365nm UV LED flashlight (Convoy S2+ with Nichia LED, $60-100); 850nm IR illuminator ($20-30); linear polarizer film ($20); raking-light source — can be a small angled LED panel ($30); transmitted-light LED panel for thin regions ($30); ambient white LEDs in the tent or separate visible softbox. Subtotal: ~$220.
+Illumination: 365nm UV LED flashlight (Convoy S2+ with Nichia LED, $60-100); 850nm IR illuminator ($20-30); linear polarizer film ($20); raking-light source ($30); transmitted-light LED panel for thin regions ($30); ambient white LEDs in tent or separate visible softbox. Subtotal: ~$220.
 
-Camera. The phone path (zero cost) is workable for visible, UV, polarized, photogrammetry, but problematic for IR because of phone IR-cut filters. The converted-webcam path (Logitech with IR-cut filter removed, $30-60, or Raspberry Pi NoIR camera module, $35-50) is better for full multi-spectral work. Subtotal: ~$60.
+Camera: phone (zero) or converted webcam ($30-60) or Raspberry Pi NoIR camera ($35-50). Subtotal: up to ~$60.
 
-Capacitive sensing: Arduino or ESP32 board (~$15) plus FDC1004 or AD5933 board ($25-30) plus copper PCB or foil electrodes (~$5). Subtotal: ~$50.
+Capacitive: Arduino or ESP32 ($15) plus FDC1004 or AD5933 board ($25-30) plus PCB or foil electrodes ($5). Subtotal: ~$50.
 
-Thermal time-constant: MLX90614 IR thermometer ($25) plus resistive heating element with controllable pulse ($15) plus microcontroller (shared with capacitive setup). Subtotal: ~$40.
+Thermal (passive for v0.1): MLX90614 IR thermometer ($25). Active heating ($15) deferred to v0.2. Subtotal v0.1: ~$25.
 
-Hyperspectral spot: SparkFun Triad ($70) plus Qwiic cable to existing microcontroller ($5). Subtotal: ~$75.
+Hyperspectral: SparkFun Triad ($70). Subtotal: ~$75.
 
-Acoustic: piezo contact microphone ($20) plus controlled striker mechanism — solenoid-actuated for repeatability, soft-tipped, hardware-region only ($30) plus phone or laptop for recording (already owned). Subtotal: ~$50.
+Acoustic: piezo contact microphone ($20) plus solenoid-actuated soft-tipped striker ($40-60 in v0.2; manual striker $20-30 for crude v0.1). Subtotal v0.1: ~$50, v0.2: ~$80.
 
-Magnetic: Hall effect sensor ($5).
+Magnetic: Hall sensor ($5).
 
-Photogrammetry: smartphone app (Polycam, Scaniverse, RealityScan, or open-source alternative), free to ~$20.
+Photogrammetry: smartphone app (free to ~$20).
 
-Structured metadata: digital scale ($30) plus digital caliper ($20). Subtotal: ~$50.
+Structured metadata: scale ($30) plus caliper ($20). Subtotal: ~$50.
 
-**Total assembled hardware: ~$650-750.** Over the original $500 claim, but under the $1,000 ceiling, and the additions are individually meaningful. The build can also be staged — start with the original six modalities for ~$400, validate signal, then add capacitive ($50), thermal ($40), and hyperspectral ($75) one at a time as v0.1 progresses.
+**Full rig total v0.1: ~$700.** Adding v0.2 active heating and improved acoustic: ~$750. Under the $1,000 ceiling. The build can be staged — High tier modalities only for ~$400, validate, then add Medium tier as v0.1 progresses.
 
 ---
 
 ## Capture protocol
 
-Per item, three regions are selected based on item type. For a handbag the typical regions are outer leather, stitching, and metal hardware; for a watch they would be case, dial, and bracelet; for apparel they would be primary fabric, stitching, and label. Region selection is part of dataset governance and is item-type-specific.
+Per item, three regions selected based on item type. Per region, the capture sequence with applicability flags:
 
-Per region, the capture sequence — with applicability flags noted — is:
+1. **Visible reference, flat illumination.** Universal.
+2. **Visible reference, raking illumination.** Universal.
+3. **UV fluorescence.** Universal. UV eye/skin precautions when source is on.
+4. **NIR reflectance.** Universal. Requires IR-capable camera.
+5. **Polarized visible.** Two captures (0° and 90°). Universal.
+6. **Transmitted light.** Thin or translucent regions only.
+7. **Photogrammetry.** Skip for very flat or featureless regions.
+8. **Hyperspectral spot.** Universal.
+9. **Capacitive measurement.** Contact-permissible regions only. Verify no marking risk before applying to any item with a delicate finish.
+10. **Thermal cooling curve.** Heat-tolerant regions only. Skip for adhesive-bonded edges, waxed finishes, aged patina, exotic skins, vintage materials.
+11. **Acoustic response.** Metal hardware and thick structured leather only. Soft-tipped low-force strike only. Verify on scrap material first.
+12. **Magnetic response.** Metal hardware only.
 
-1. **Visible reference, flat illumination.** Tent ambient lighting on, single capture with calibration target in frame. Universal.
-2. **Visible reference, raking illumination.** Flat lights off, raking light on, single capture. Universal.
-3. **UV fluorescence.** All visible lights off, 365nm UV illumination on, single capture. Universal.
-4. **NIR reflectance.** Visible and UV off, 850nm illumination on, single capture using IR-capable camera. Universal.
-5. **Polarized.** Visible lights on, polarizer at 0°, single capture; polarizer at 90°, single capture. Universal.
-6. **Transmitted light.** LED panel behind region, single capture. *Thin or translucent regions only.*
-7. **Photogrammetry.** Visible lights on, five to ten captures from different angles around the region. App post-processes into height map. *Skip for very flat or featureless regions.*
-8. **Hyperspectral spot.** Triad sensor positioned at region center, one or more readings. Universal.
-9. **Capacitive measurement.** Sensor pad pressed against region for ~5 seconds, impedance reading recorded. *Contact-permissible regions only.*
-10. **Thermal time-constant.** Brief heat pulse applied, cooling curve recorded over 10-20 seconds via IR thermometer. *Heat-tolerant regions only — skip for delicate finishes that might react to mild warming.*
-11. **Acoustic response.** Striker rig positioned, soft-tipped low-force strike, piezo records waveform. *Metal hardware and thick structured leather only.*
-12. **Magnetic response.** Hall sensor placed against hardware, reading recorded. *Metal hardware only.*
+Plus once per item: weight, key dimensions, ambient context metadata.
 
-Plus once per item (not per region):
-- Weight measurement on scale.
-- Key dimension measurements with caliper.
-- Ambient context metadata logged.
-
-Total artifacts per item, assuming three regions and all applicable modalities: roughly 25-30 image-like captures, 3-9 waveforms or 1D signals, 6-9 scalar readings, plus item-level metadata. End-to-end capture time fifteen to thirty minutes per item, comparable to the v1 estimate despite the additional modalities because the non-optical measurements are individually fast (seconds each).
-
-The capture protocol is the new equivalent of the K parameter in the microscopy world: a fixed sequence executed identically per item, with the protocol design itself part of the system specification and subject to the same governance as everything else.
-
----
-
-## What discriminates authentic from counterfeit, by modality
-
-Worth being concrete about what signal each modality actually carries.
-
-**Visible (flat).** Color accuracy, edge work, finishing quality, surface uniformity, hardware plating consistency. Mostly captures macro-level finishing differences that distinguish good fakes from authentic items at the level a careful human inspector would notice.
-
-**Visible (raking).** Surface relief — embossing depth, stitch hole quality, edge paint build-up, heat-stamp impressions, grain elevation. Captures the 3D shape of the surface as revealed by shadow patterns under directional light.
-
-**UV fluorescence.** Adhesive composition (authentic vs. counterfeit glues fluoresce differently), dye chemistry (especially for leather treatments and thread dyes), optical brighteners (frequently present in counterfeit fabrics, less common in luxury authentic), aged versus new material (authentic patina has characteristic UV signatures). For leather goods especially, UV fluorescence is unusually informative because the tanning, dyeing, and finishing chemistry of luxury leather is markedly different from cheaper alternatives at the molecular level even when visually identical.
-
-**NIR reflectance.** Dye penetration depth, underlying material structure beneath surface coatings, plating uniformity on metal hardware, fiber composition in fabrics. IR is particularly useful for distinguishing authentic single-piece leather from layered or coated alternatives because the IR signal penetrates the surface coating in ways visible light doesn't.
-
-**Polarized.** Material crystallinity, surface roughness statistics, plating versus solid metal, glossy versus matte finish authenticity. Polarization is informative for distinguishing real metal hardware from plated or cast imitations because the metallic crystal structure scatters polarized light differently from coatings.
-
-**Photogrammetric height map.** Surface roughness statistics, grain depth distribution, pore structure, embossed-pattern depth and uniformity, edge roll quality on leather. Height maps capture the actual 3D structure of the surface rather than its 2D appearance, which is harder to fake convincingly.
-
-**Transmitted light.** Internal fiber structure, lamination layers, inclusions, backing material composition. The single most decisive signal for distinguishing full-grain leather from bonded or coated alternatives, when the region allows it.
-
-**Hyperspectral spot.** Spectral fingerprints across 18 narrow bands. Catches dye and coating chemistry differences that broadband UV/IR imaging misses. Particularly useful for materials where the visible appearance is convincingly faked but the underlying chemistry differs.
-
-**Capacitive / dielectric.** Material composition at the electromagnetic level — moisture content, ionic composition, polymer chemistry, fiber structure. Real leather and synthetic substitutes have characteristically different dielectric responses regardless of visual appearance. This is the modality most orthogonal to optical signals.
-
-**Thermal time-constant.** Bulk thermal diffusivity — composition, density, internal structure. Catches plated-plastic-masquerading-as-metal and bonded-leather-masquerading-as-full-grain in a way no surface-only measurement can.
-
-**Acoustic.** Material density, internal structure, assembly quality (glued versus stitched, hollow versus solid), hardware authenticity (cast versus machined, plated versus solid metal). Global property of the region rather than local one. Scope-restricted to applicable regions.
-
-**Magnetic.** Ferromagnetic content of metal hardware. Sharp, decisive signal for catching steel-cored plated hardware. Scope-restricted to metal regions.
-
-The thesis is that defeating any one of these is achievable for a determined counterfeiter; defeating all of them simultaneously requires reproducing the authentic item at a fidelity that approaches simply manufacturing it correctly, which is the economic outcome you want.
+Total artifacts per item assuming three regions and applicable modalities: roughly 25-30 image-like captures, 3-9 waveforms or 1D signals, 6-9 scalar readings. End-to-end fifteen to thirty minutes.
 
 ---
 
 ## Architectural integration
 
-The architectural change from v1 is small: more modalities, same architecture. The existing pipeline takes captures, produces embeddings, searches a reference database, scores per region, and aggregates into a decision. The multi-sensor approach changes only the capture and embedding stages.
+The architectural change from the current pipeline is small: more modalities, same architecture.
 
-**Capture and ingestion.** Each capture is stored with metadata identifying its modality, region, item, and capture session. The data model needs a `modality` field on captures, illumination metadata, camera/sensor metadata, exposure settings, and a calibration target reference. The change is purely additive — existing captures are implicitly `modality = visible_microscopy` or whatever the current data is later relabeled as.
+**Capture and ingestion.** Each capture stored with metadata identifying modality, region, item, capture session, illumination, camera/sensor settings, calibration target reference. Data model needs additive `modality` field; existing captures are implicitly `modality = visible_microscopy` or whatever you decide to call current data.
 
-**Embedding.** Each modality is encoded by a modality-appropriate embedding model. Image-like modalities (visible flat, visible raking, UV, IR, polarized, height map, transmitted) all flow through the existing image embedding infrastructure — DINOv2 or whatever the current best foundation model is. The hyperspectral spot reading is an 18-dimensional vector that can be embedded directly or projected through a small learned encoder. Capacitive and magnetic readings are scalars or short vectors that need either direct comparison or a small learned encoder. The thermal cooling curve and acoustic waveform are 1D signals that go through an audio-style encoder (Wav2Vec2, AST, or for a simpler start, spectrogram-as-image fed through the image encoder). Each modality produces its own embedding vector stored alongside the capture.
+**Embedding.** Each modality encoded by modality-appropriate model. Image-like modalities through DINOv2 or current best foundation model. Hyperspectral spot is an 18-d vector, embedded directly or through small learned encoder. Capacitive and magnetic readings are scalars or short vectors. Thermal cooling curve and acoustic waveform are 1D signals through audio-style encoder (Wav2Vec2, AST, or spectrogram-as-image fed through image encoder).
 
-**Per-modality similarity search.** Within each modality, the embedding is compared against same-modality reference embeddings. Visible-vs-visible, UV-vs-UV, capacitive-vs-capacitive, and so on. This preserves the property that each modality is producing a discriminative signal in its own feature space, and doesn't require learning a cross-modal projection in the first version.
+**Per-modality similarity search.** Visible-vs-visible, UV-vs-UV, capacitive-vs-capacitive. Preserves per-modality discriminative signal without requiring cross-modal projection in v0.1.
 
-**Per-region score combination.** A region's authentication score combines its per-modality scores. Start with the simple version: weighted sum of modality scores with weights estimated from within-class variance (low within-class variance = high weight) versus between-class variance (high between-class variance = high weight) on authentic data. This can be done with only authentic captures — paired counterfeit data is not required to estimate sensible weights. More sophisticated combinations (learned modality weights per item type, small classifier trained on combined modality vectors, learned cross-modal embedding) are deferred to v0.2+ once data exists to validate them against.
+**Per-region score combination.** Start simple: weighted sum with weights estimated from within-class variance versus between-class variance on authentic data. This works without paired counterfeit data — you measure how tightly authentics cluster within each modality (low within-class variance = high weight) versus how much authentics differ from each other across items (high between-class variance = high weight). Sophisticated combinations (learned weights per item type, classifiers on combined vectors, learned cross-modal embeddings) deferred to v0.2+.
 
-**Region aggregation.** The existing region-aggregation logic carries forward unchanged.
+The within-/between-class approach assumes modality variance on authentics predicts discrimination on counterfeits, which may not hold — some modalities may have low variance on authentics but also low variance on good fakes. Real validation requires paired data, which v0.1 won't have.
 
-**Modality applicability matrix.** Not every modality applies to every region. The system needs a per-region-type modality applicability specification: hardware regions get acoustic and magnetic; thin regions get transmitted light; smooth-finish regions skip thermal time-constant; etc. This is part of the protocol specification.
+**Region aggregation.** Existing logic carries forward unchanged.
 
-**Storage cost.** Roughly twelve modalities times three regions per item is up to thirty-six embedding records per item, though the realistic average is closer to twenty after applicability filtering. At 768-dimensional embeddings stored as float32, that's about 60-110KB per item rather than 9KB. Still negligible at LuxAuth scales.
+**Modality applicability matrix.** Per-region-type specification of which modalities apply. Hardware regions get acoustic and magnetic; thin regions get transmitted light; smooth-finish regions skip thermal; etc.
 
-**The architectural question that's deferred.** Whether to learn a single cross-modal embedding per region (more discriminative, requires paired multi-modal training data) versus keeping per-modality embeddings and combining at the decision layer (simpler, works immediately) is a v0.2 question. The middle path — late fusion with learned modality weights estimated from authentic-only data — is doable in v0.1.5 without requiring paired counterfeit data.
-
----
-
-## Patent posture, briefly
-
-Multi-spectral imaging at normal magnification, photogrammetry, capacitive measurement, thermal time-constant, hyperspectral spot reflectance, and acoustic authentication each sit in cleaner FTO space than microscopy. The dominant patent in the microscopy space hinges on the word "microscopic" as a load-bearing claim limitation, and operating at normal magnification is structurally outside that limitation rather than a tweak around it.
-
-This is not a clean room. Multi-modal sensor fusion has its own active patent landscape (many filings 2020-2024 in industrial inspection, medical imaging, and authentication). Specific cross-modal attention mechanisms could become encumbered. Other patents exist in spectroscopy, photogrammetry, audio classification, and dielectric material analysis. A real FTO opinion against the specific implementation is required before any commercial deployment.
-
-For research-phase work — which is the current state — the patent posture is good enough to proceed. The FTO opinion is the gate before commercialization, not before exploration.
+**Storage cost.** Roughly twelve modalities × three regions × per-item, realistically ~20 records after applicability filtering. At 768-d float32 embeddings, ~60-110KB per item. Negligible at LuxAuth scales.
 
 ---
 
-## What the v0.1 exploration looks like
+## V0.1 exploration
 
-Concrete and small. Before any significant hardware purchase, a one-evening exercise to test the core thesis.
+### Safety preconditions
 
-Pick three to five items already owned — bags, wallets, watches, anything with luxury-level construction. Mix authentic and obviously-fake or cheap-substitute items if possible. For each item, capture as many modalities as can be done with hardware already owned or assembled for under $50:
+Before any capture on any item, the following preconditions apply:
 
-Phone-based captures: visible flat, visible raking (just point a flashlight at a low angle), UV fluorescence (borrow or buy a 365nm flashlight), polarized (cheap polarizer film or even polarized sunglasses over the lens), photogrammetry (free smartphone app), and acoustic recording — the **coin test** is the right v0.1 hack: drop a coin onto a hard surface near the item, record on phone.
+**Use non-valuable items only.** Scrap leather, cheap synthetic substitutes, old wallets, hardware samples, items where damage is acceptable. Do not test contact, heat, acoustic, or pressure-based modalities on high-value items in v0.1. Validate non-damaging protocols on scrap before considering application to valuable items.
 
-Cheap electronics captures: capacitive measurement using an Arduino or ESP32 with a foil electrode and a 10MΩ resistor — measurably different between real leather and plastic, takes 10 minutes to set up. This is the modality to prioritize testing because it's both extremely cheap and theoretically the most orthogonal to everything else.
+**UV safety.** 365nm UV at the power levels used here is mostly harmless, but eye exposure should still be avoided and prolonged skin exposure is not advised. Use UV-blocking eyewear or work in an enclosed light tent. Do not point UV sources at others.
 
-Optional if the hardware is on hand: any IR thermometer for crude thermal time-constant testing (warm with a hair dryer briefly, watch the cooling curve); a magnet for crude magnetic response on metal hardware.
+**Thermal caution.** Even mild warming can affect adhesives, waxes, surface treatments, patina on aged items, exotic skins, and vintage materials. Test thermal protocols on scrap before any real item.
 
-Skip for v0.1 unless hardware arrives quickly: NIR imaging (needs IR-capable camera), hyperspectral spot (needs Triad sensor), proper thermal time-constant (needs controlled heat pulse), proper acoustic (needs piezo and striker rig), transmitted light (needs LED panel).
+**Acoustic caution.** The striker can mark surfaces. Hardware-only and thick-structured-leather-only, with soft tip, low force, validated on scrap first.
 
-For each modality tested, just look at what was captured. Does the UV image reveal information that's invisible in the visible image? Does the capacitance reading reliably distinguish real leather from synthetic? Does the height map capture something distinctive about the surface? Does the acoustic waveform vary meaningfully between items? You're not running a classifier; you're forming a quick judgment about whether the modalities are actually producing discriminative signal on real items, or whether they're correlated enough that the multi-modal pitch isn't actually delivering.
+**Capacitive caution.** Contact pressure can mark delicate finishes. Test contact protocols on scrap before applying to real items.
 
-The success criterion for v0.1: at least three modalities produce visibly different results between an authentic item and a substitute item, *and* the differences are not perfectly correlated across modalities. If capacitance, UV, and height map all separate real-from-fake but they all separate it the same way, that's one signal in three measurements rather than three independent signals. The thesis requires orthogonal information.
+### What to do
 
-If the one-evening exercise shows clear independent signal across modalities, the multi-sensor approach is worth investing real engineering time in. If the modalities mostly tell the same story as the visible image, the approach needs rethinking before any hardware spend.
+Pick three to five non-valuable items — scrap leather pieces, old wallets, cheap belts, hardware samples (buckles, snaps, zippers from craft stores). Mix obviously-real-leather items with obviously-synthetic substitutes. The goal is to test whether modalities produce *independently informative* signal on the kind of materials the system would eventually have to discriminate.
+
+Capture as many High-tier modalities as you can with hardware you already own or can assemble for under $100:
+
+Phone-based: visible flat, visible raking (just point a flashlight at low angle), UV fluorescence (borrow or buy a 365nm flashlight), polarized (cheap polarizer film over the lens), photogrammetry (free smartphone app for v0.1 — Experimental tier but free to test).
+
+Cheap electronics: capacitive measurement using an Arduino or ESP32 with foil electrodes and a 10MΩ resistor. This is the modality to most prioritize testing because it's both extremely cheap and theoretically most orthogonal.
+
+Skip for v0.1 unless hardware arrives quickly: NIR (needs IR-capable camera), hyperspectral spot (needs Triad), thermal (needs IR thermometer plus equilibration setup), acoustic (needs piezo + striker + scrap testing), transmitted light (needs LED panel).
+
+For each modality you can test, just look at the captures. Form a quick judgment about whether the modality is producing discriminative signal independent of the visible image.
+
+### Decision gate
+
+**Proceed past v0.1 if:**
+- At least three High-tier modalities produce repeatable signal across multiple captures of the same item.
+- At least two modalities reveal information not visible in the ordinary flat-light visible image (i.e., they're orthogonal, not redundant).
+- Capture can be repeated without item risk on the materials being tested.
+- Operator workflow is plausible — the protocol can be executed by someone other than the system designer in reasonable time.
+
+**Stop or defer if:**
+- Modalities mostly duplicate the visible image (correlation high, orthogonality low).
+- Calibration burden dominates capture time, suggesting the system can't be deployed by non-experts.
+- Contact, thermal, or acoustic modalities can't be made non-damaging at acceptable cost.
+- Repeatability is poor — same item captured twice produces meaningfully different readings.
+
+If the decision is to stop, this document remains a considered-and-rejected option. The microscopy/DINOv2 path continues.
+
+If the decision is to proceed, the next step is a more controlled v0.2 with a small dataset (3-5 items × 3 regions × multiple capture sessions × stability measurements), Medium-tier modality additions, and explicit modality-ablation analysis.
 
 ---
 
 ## Open questions
 
-How to calibrate the capture rig across items, operators, and time. Multi-spectral and electrical measurements are sensitive to ambient conditions in ways single-modality imaging isn't. The calibration target visible in every capture is necessary but not sufficient — periodic capture-rig validation runs against known reference materials may also be needed.
+How to make capacitive measurement robust to humidity variation. Leather's hygroscopic nature is what makes capacitive measurement informative, but it also means readings vary with ambient humidity. Either the capture environment needs humidity control, or the model needs to be trained robust to humidity variation, or the modality needs explicit humidity-context normalization.
 
-How to handle the photogrammetry quality bar. Smartphone photogrammetry is rough, and "rough" might or might not be enough for authentication-grade height map analysis. The question is whether the roughness is *systematic* (same error direction across captures) or *noise*.
+Whether smartphone photogrammetry produces height maps with discriminative information or just noise. The roughness needs to be systematic (informative) rather than random (noise). V0.1 should test this empirically.
 
-Whether the acoustic modality survives operational deployment at all. Even with scope-restriction to hardware regions, the marking risk on plated finishes is non-zero. A non-contact alternative (laser vibrometry) exists but breaks the cheap-and-easy budget. May end up as an optional modality used only on items where the customer has consented to the risk.
+Whether the within-/between-class variance weighting on authentic-only data actually produces useful modality weights. The assumption that authentic-modality-variance predicts counterfeit-discrimination may not hold for all modalities.
 
-How capacitive measurement handles humidity variation. Leather is hygroscopic, which is what makes capacitive measurement informative — but it also means the same item will read differently on a humid day versus a dry day. Either the capture environment needs humidity control or the model needs to be robust to humidity variation.
+Whether the operational fast-subset (visible + UV + capacitive) produces enough discriminative power to justify the architectural complexity, or whether operational deployment ends up requiring more modalities than the time budget allows.
 
-How thermal time-constant handles delicate finishes. The heat pulse is mild, but mild is not zero. Some lacquered or treated finishes might react to even brief warming. Region applicability needs careful specification.
+Whether the modality applicability matrix can be made simple enough for non-expert operators to apply correctly, or whether it requires trained authenticators to make per-region decisions.
 
-How modality weights should be estimated. The within-class-variance / between-class-variance approach works on authentic-only data but assumes that the modality variance measured on authentics is representative of the modality discrimination on counterfeits. This may not hold — some modalities may have low variance on authentics but also low variance on good fakes. Real validation requires paired data.
+Whether acoustic survives operational deployment at all. Even with scope-restriction to hardware regions and structured leather, the marking risk is non-zero. May end up as an optional modality applied only with customer consent.
 
-Whether to learn cross-modal embeddings or stay with per-modality embeddings combined at decision time. The simpler approach works immediately; the more sophisticated approach is potentially much more discriminative but requires paired multi-modal training data. Decide after measuring.
-
-What the operator skill curve looks like for non-expert capture, and whether the protocol can be made simple enough for resale-platform-staff-level operators. Twelve modalities with applicability flags is not simple. The operational deployment may end up using a small high-throughput subset (visible + UV + capacitive, say) calibrated against the full reference library captured carefully in lab conditions.
-
-These are the questions a real v0.1 build would need to answer. They're not blockers to starting the exploration; they're the things that would be found out by doing it.
+These are questions a real v0.2+ build would need to answer. They're not blockers to running v0.1; they're things that determine whether v0.2 is worth attempting.
 
 ---
 
-## Relationship to the current LuxAuth implementation
+## Roadmap placement
 
-The microscopy-based pipeline is the in-flight implementation. Phase 10 (few-shot prototype matching with DINOv2 backbone comparison) is complete; Phase 11 (DINOv2 shadow integration) is planned and gated on capture infrastructure prerequisites being visible. The current pipeline assumes a single modality (microscopic visible-light imagery).
+This document sits in the project roadmap as:
 
-If a v0.1 multi-sensor exploration is undertaken and produces clear independent signal across modalities, the integration path would be:
+**Parallel research track: Multi-Sensor Capture Exploration**
+- Status: Dormant, pending v0.1 signal check decision
+- Not Phase 12 of the microscopy path
+- Microscopy/DINOv2 Phase 11 (shadow integration) remains the active workstream
+- Activation gate: explicit decision to run v0.1 exploration, made independently of Phase 11 progress
+- Continuation gate: v0.1 decision criteria above
+- If v0.1 fails or is not run: this document remains a considered strategic option in the project record
 
-1. **Add a `modality` field to capture metadata.** Existing captures become `modality = visible_microscopy`. New captures carry their own modality tags.
-2. **Per-modality embedding pipelines.** The existing image-embedding infrastructure (texture_baseline, learned_metric, DINOv2) handles the image-like modalities. Audio embedding for acoustic and thermal-curve embedding are new components.
-3. **Per-modality similarity search.** Reuses pgvector and the existing region scoring, partitioned by modality.
-4. **Score combination at the decision layer.** Initial implementation is a weighted sum (with weights from within-/between-class variance on authentic-only data); more sophisticated fusion is a v0.2 question.
-5. **Modality applicability matrix per region type.** A new piece of protocol metadata that drives which modalities apply to which regions.
-6. **Existing decision-service logic carries forward** without change. This is the architectural payoff of the modality-agnostic pipeline design.
-
-If the v0.1 exploration does **not** show clear independent signal, this document remains as a record of a strategic option that was considered and rejected on evidence. Phase 11 microscopy-based shadow integration continues as planned.
-
-The two paths are not currently being run concurrently because the resource-allocation argument that gated Phase 11A (capture infrastructure prerequisites visible, not just possible) applies equally here. A multi-sensor exploration would be undertaken when the conditions for it exist, not speculatively.
+The v0.1 exploration is small enough (one evening, ~$50-100 hardware) that running it doesn't significantly impact Phase 11 timeline. The decision of whether to run it now or defer is a personal-bandwidth question, not a resource question.
 
 ---
 
 ## Revision history
+
+### v3 — 2026-05-01
+
+Section-level diff against v2.
+
+- **New top-level Status section.** Replaces the previous header status block + "What this document is / is not" preamble with a single substantive section. Frames the document explicitly as "Parallel research track, not adopted," names Phase 11 as the active workstream, and ties the document's continuation to the v0.1 decision gate.
+- **New Operational definition section.** Defines "normal magnification" concretely: cm-scale field of view, no microscope optics, no classification dependent on sub-100-micron features, macro 1:1 to 1:4 permissible. Acknowledges this is an engineering boundary, not a legal conclusion. Was implicit in v1/v2.
+- **New Modality priority and risk assessment section.** Adds High / Medium / Experimental priority tiers with explicit Repeatability risk and Damage risk columns per modality. This is a different framing than v2's "core imaging / non-optical / structured metadata" tiering (which v3 keeps as subsection headers under "The capture modalities") — v3's priority tier is about what to do first/next, while the physical-character tier is preserved for taxonomy.
+- **Acoustic demoted to Experimental tier.** v2 had acoustic in non-optical-core with "scope-restricted" framing; v3 explicitly demotes to Experimental tier with damage-risk-Yes flag. Same scope restriction, different framing.
+- **Photogrammetry demoted to Experimental tier.** v2 had it in core imaging with the photogrammetric-roughness caveat; v3 makes the demotion explicit because smartphone photogrammetry's signal value is uncertain and needs v0.1 validation before being treated as core.
+- **Thermal switched to passive cooling for v0.1.** v2 used active heat pulse with the controlled-pulse-control caveat; v3 switches to passive equilibration (warm in closed cabinet, move to cooler measurement environment, record passive cooling curve). Eliminates the pulse-control problem entirely. Active heating deferred to v0.2.
+- **Magnetic reframed as diagnostic, not standalone signal.** v2 framed magnetic as "sharp, decisive signal." v3 nuances: many authentic luxury items use stainless steel or ferromagnetic alloys, many counterfeits use non-ferrous zinc alloys. The signal separates material classes but the mapping to authenticity is item-type-dependent. Useful as scoring input, not standalone authenticity signal.
+- **Calibration targets clarified as separate per-modality.** v2 mentioned a single calibration target. v3 acknowledges no single combined card exists off-the-shelf and specifies separate per-modality references (visible gray card / UV fluorescence reference / IR reflectance standard / capacitive reference material / thermal reference material) with ~$80-100 total overhead. Mandatory.
+- **Acoustic v0.1 vs v0.2 split.** v2 implied solenoid-actuated as v0.1-ready. v3 splits crude manual striker ($20-30 for v0.1) from solenoid-actuated soft-tipped striker for ML-grade repeatability ($40-60 for v0.2), and explicitly notes manual striking introduces too much variance for cross-session ML.
+- **Hardware budget restructured into v0.1 vs v0.2.** v2 had ~$650-750 total. v3 has ~$700 v0.1 / ~$750 v0.2 split. Calibration line item up from ~$20 to ~$80-100. Thermal v0.1 down from $40 to $25 (passive only). Acoustic v0.1 unchanged but v0.2 acknowledged at $80.
+- **V0.1 exploration restructured with safety preconditions.** v2 framed v0.1 as "items you own"; v3 restricts to non-valuable items only with explicit safety preconditions section (UV safety, thermal caution, acoustic caution, capacitive caution, validate-on-scrap-first). Significant safety-framing improvement.
+- **V0.1 decision gate formalized.** v2 had informal "if X then Y" prose for v0.1 success criteria. v3 has explicit Proceed / Stop-or-defer bulleted criteria. Stop conditions added: modalities duplicate visible image, calibration burden dominates capture time, damage cannot be ruled out, repeatability poor.
+- **New Roadmap placement section.** Replaces v2's "Relationship to the current LuxAuth implementation" section with a more compact framing. Names this as a "Parallel research track" with activation/continuation gates, and explicitly states that v0.1 is small enough that running it doesn't significantly impact Phase 11 timeline — making the decision a personal-bandwidth question rather than a resource-allocation question.
+- **Section folds.** "What discriminates authentic from counterfeit, by modality" (v2 standalone section) folded into the modality definitions themselves. "Patent posture, briefly" (v2 standalone section) folded into the Motivation section's patent-posture paragraph.
 
 ### v2 — 2026-05-01
 
