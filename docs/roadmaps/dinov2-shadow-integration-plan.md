@@ -488,6 +488,7 @@ Both carryovers are framed as design passes (small, explicit) rather than migrat
 
 ### 15.1 Linked
 
+- [Pre-Phase 11 Readiness Checklist](dinov2-shadow-integration-readiness.md) — gate that determines when Phase 11A is appropriate to start
 - [Few-Shot Prototype Matching Results](../datasets/few-shot-prototype-results.md) — Phase 10 evidence
 - [OOD Experiment Results](../datasets/ood-experiment-results.md) — earlier OOD evaluation context
 - [ML Improvement Roadmap](ml-improvement-roadmap.md) — overall ML phase sequencing
