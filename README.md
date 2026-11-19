@@ -1,6 +1,6 @@
 # LuxAuth
 
-Private monorepo for AI-assisted luxury goods authentication.
+Monorepo for AI-assisted luxury goods authentication.
 
 The system uses controlled microscopic imaging and machine learning to compare
 manufacturing signatures against a curated reference database. It is designed as an
